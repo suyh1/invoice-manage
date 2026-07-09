@@ -16,10 +16,12 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir \
     "alembic==1.16.5" \
+    "celery==5.6.3" \
     "cryptography==46.0.3" \
     "fastapi==0.116.0" \
     "python-multipart==0.0.20" \
     "psycopg[binary]==3.2.13" \
+    "redis==8.0.1" \
     "tencentcloud-sdk-python-common==3.1.129" \
     "tencentcloud-sdk-python-ocr==3.1.128" \
     "sqlalchemy==2.0.51" \

@@ -14,6 +14,8 @@ dependencies = [
   "sqlalchemy==2.0.51",
   "tencentcloud-sdk-python-common==3.1.129",
   "tencentcloud-sdk-python-ocr==3.1.128",
+  "celery==5.6.3",
+  "redis==8.0.1",
 ]
 
 [project.scripts]
