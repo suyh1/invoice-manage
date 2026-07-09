@@ -15,8 +15,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN pip install --no-cache-dir \
+    "alembic==1.16.5" \
     "cryptography==46.0.3" \
     "fastapi==0.116.0" \
+    "psycopg[binary]==3.2.13" \
+    "sqlalchemy==2.0.51" \
     "uvicorn[standard]==0.35.0" \
     "pydantic-settings==2.10.1" \
   && addgroup --system invoice \

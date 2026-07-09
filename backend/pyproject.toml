@@ -4,10 +4,13 @@ version = "0.1.0"
 description = "FastAPI backend for the invoice OCR management system."
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "alembic==1.16.5",
   "cryptography==46.0.3",
   "fastapi==0.116.0",
+  "psycopg[binary]==3.2.13",
   "uvicorn[standard]==0.35.0",
   "pydantic-settings==2.10.1",
+  "sqlalchemy==2.0.51",
 ]
 
 [project.optional-dependencies]
