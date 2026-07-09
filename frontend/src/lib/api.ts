@@ -19,6 +19,10 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return apiRequest<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
 }
 
+export async function apiPostForm<T>(path: string, body: FormData): Promise<T> {
+  return apiRequest<T>(path, { method: "POST", body });
+}
+
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return apiRequest<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 }

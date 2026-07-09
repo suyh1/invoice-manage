@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { UploadPage } from "../pages/UploadPage";
 
 export type AppRouteId = "dashboard" | "invoices" | "upload" | "review" | "exports" | "settings";
 
@@ -41,6 +42,9 @@ export function renderRoute(route: AppRoute) {
   }
   if (route.id === "dashboard") {
     return <DashboardPage />;
+  }
+  if (route.id === "upload") {
+    return <UploadPage />;
   }
   return <PlaceholderPage route={route} />;
 }
