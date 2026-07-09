@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.api.dependencies import assert_invoice_access
 from app.core.errors import AppError
 from app.domain.file.models import InvoiceDocument
+from app.domain.invoice.duplicate import detect_duplicates_for_invoice
 from app.domain.invoice.models import Invoice, InvoiceCorrection, InvoiceStatus
 from app.domain.user.models import User, UserRole
 
@@ -122,6 +123,7 @@ class InvoiceService:
             )
             setattr(invoice, field, new_value)
             db.add(correction)
+        detect_duplicates_for_invoice(db, invoice)
         db.flush()
         return invoice
 

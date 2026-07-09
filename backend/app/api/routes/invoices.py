@@ -8,12 +8,16 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.errors import AppError
 from app.db.session import get_db
+from app.domain.invoice.duplicate import serialize_duplicate_check
+from app.domain.invoice.models import DuplicateCheck, DuplicateCheckStatus
 from app.domain.invoice.service import InvoiceService, serialize_invoice_detail
-from app.domain.user.models import User
+from app.domain.user.models import User, UserRole
 
 
 router = APIRouter(prefix="/api/v1/invoices", tags=["invoices"])
+duplicate_router = APIRouter(prefix="/api/v1/duplicate-checks", tags=["duplicate-checks"])
 
 
 class InvoicePatchPayload(BaseModel):
@@ -137,3 +141,49 @@ def delete_invoice(
     db.commit()
     db.refresh(deleted)
     return {"data": serialize_invoice_detail(deleted)}
+
+
+@router.get("/{invoice_id}/duplicate-checks")
+def list_duplicate_checks(
+    invoice_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    invoice = InvoiceService().get_invoice(db, invoice_id, current_user)
+    checks = sorted(invoice.duplicate_checks, key=lambda check: check.score or 0, reverse=True)
+    return {"data": [serialize_duplicate_check(check) for check in checks]}
+
+
+@duplicate_router.post("/{check_id}/confirm")
+def confirm_duplicate_check(
+    check_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    check = _get_duplicate_check_for_finance(db, check_id, current_user)
+    check.status = DuplicateCheckStatus.confirmed_duplicate
+    db.commit()
+    db.refresh(check)
+    return {"data": serialize_duplicate_check(check)}
+
+
+@duplicate_router.post("/{check_id}/ignore")
+def ignore_duplicate_check(
+    check_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    check = _get_duplicate_check_for_finance(db, check_id, current_user)
+    check.status = DuplicateCheckStatus.ignored
+    db.commit()
+    db.refresh(check)
+    return {"data": serialize_duplicate_check(check)}
+
+
+def _get_duplicate_check_for_finance(db: Session, check_id: UUID, current_user: User) -> DuplicateCheck:
+    if current_user.role not in {UserRole.finance, UserRole.admin}:
+        raise AppError("AUTH_FORBIDDEN", "You do not have permission to manage duplicate checks", status_code=403)
+    check = db.get(DuplicateCheck, check_id)
+    if check is None:
+        raise AppError("DUPLICATE_CHECK_NOT_FOUND", "Duplicate check was not found", status_code=404)
+    return check
