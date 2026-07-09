@@ -8,6 +8,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.exports import router as exports_router
 from app.api.routes.invoices import duplicate_router, router as invoices_router
+from app.api.routes.ocr_jobs import router as ocr_jobs_router
 from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler
 
@@ -19,6 +20,7 @@ def create_app() -> FastAPI:
     application.include_router(admin_ocr_router)
     application.include_router(auth_router)
     application.include_router(documents_router)
+    application.include_router(ocr_jobs_router)
     application.include_router(duplicate_router)
     application.include_router(invoices_router)
     application.include_router(exports_router)

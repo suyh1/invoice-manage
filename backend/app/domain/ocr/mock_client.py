@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +19,8 @@ class MockOcrClient:
     )
 
     def __init__(self, fixture_path: Path | None = None) -> None:
-        self.fixture_path = fixture_path
+        configured_fixture = os.environ.get("MOCK_OCR_FIXTURE_PATH")
+        self.fixture_path = fixture_path or (Path(configured_fixture) if configured_fixture else None)
 
     def test_connection(self, provider_config: OcrProviderConfig, credential: dict[str, str] | None) -> dict[str, Any]:
         del provider_config, credential

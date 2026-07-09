@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -13,9 +14,11 @@ from app.api.dependencies import get_current_user
 from app.db.session import get_db
 from app.domain.export.service import ExportService, serialize_export_task
 from app.domain.user.models import User
+from app.workers.tasks import run_export_task_task
 
 
 router = APIRouter(prefix="/api/v1/exports", tags=["exports"])
+logger = logging.getLogger(__name__)
 
 
 class ExportCreatePayload(BaseModel):
@@ -35,6 +38,10 @@ def create_export(
     task = ExportService().create_task(db, payload.model_dump(), current_user)
     db.commit()
     db.refresh(task)
+    try:
+        run_export_task_task.delay(str(task.id))
+    except Exception as exc:
+        logger.warning("failed to enqueue export task %s: %s", task.id, exc.__class__.__name__)
     return {"data": serialize_export_task(task)}
 
 

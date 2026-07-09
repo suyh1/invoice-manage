@@ -4,7 +4,7 @@ import argparse
 
 from app.db.session import SessionLocal
 from app.domain.user.models import UserRole
-from app.domain.user.service import create_user
+from app.domain.user.service import create_user, get_user_by_email
 
 
 def main() -> None:
@@ -19,6 +19,12 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "create-admin":
         with SessionLocal() as db:
+            existing = get_user_by_email(db, args.email)
+            if existing is not None:
+                if existing.role != UserRole.admin:
+                    raise SystemExit(f"user {existing.email} already exists and is not an admin")
+                print(f"admin user {existing.email} already exists")
+                return
             user = create_user(
                 db,
                 email=args.email,

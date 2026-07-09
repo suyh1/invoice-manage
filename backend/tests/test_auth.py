@@ -185,3 +185,44 @@ def test_create_admin_cli_creates_admin_user(monkeypatch, db_session: Session, c
     assert saved.display_name == "Admin User"
     assert verify_password("admin-password", saved.password_hash)
     assert "created admin user admin@example.com" in capsys.readouterr().out
+
+
+def test_create_admin_cli_allows_existing_admin(monkeypatch, db_session: Session, capsys) -> None:
+    existing = create_user(
+        db_session,
+        email="admin@example.com",
+        password="admin-password",
+        display_name="Admin User",
+        role=UserRole.admin,
+    )
+    db_session.commit()
+
+    class SessionContext:
+        def __enter__(self) -> Session:
+            return db_session
+
+        def __exit__(self, exc_type, exc, traceback) -> None:
+            db_session.close()
+
+    monkeypatch.setattr("app.cli.SessionLocal", SessionContext)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "invoice-app",
+            "create-admin",
+            "--email",
+            "Admin@Example.com",
+            "--password",
+            "different-password",
+            "--display-name",
+            "Different Name",
+        ],
+    )
+
+    cli_main()
+
+    saved = db_session.query(User).filter_by(email="admin@example.com").one()
+    assert saved.id == existing.id
+    assert saved.display_name == "Admin User"
+    assert verify_password("admin-password", saved.password_hash)
+    assert "admin user admin@example.com already exists" in capsys.readouterr().out

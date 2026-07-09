@@ -3,9 +3,11 @@ from __future__ import annotations
 from celery import Celery
 
 from app.core.config import get_settings
+from app.db.base import import_all_models
 
 
 settings = get_settings()
+import_all_models()
 
 celery_app = Celery(
     "invoice_ocr",

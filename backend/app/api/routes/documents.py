@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
@@ -15,9 +16,11 @@ from app.domain.file.storage import LocalFileStorage
 from app.domain.file.validators import ValidatedUpload, validate_upload
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig
 from app.domain.user.models import User
+from app.workers.tasks import process_ocr_job_task
 
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("")
@@ -61,6 +64,11 @@ async def upload_document(
 
     db.commit()
     db.refresh(document)
+    if ocr_job is not None:
+        try:
+            process_ocr_job_task.delay(str(ocr_job.id))
+        except Exception as exc:
+            logger.warning("failed to enqueue OCR job %s: %s", ocr_job.id, exc.__class__.__name__)
 
     return {
         "data": {

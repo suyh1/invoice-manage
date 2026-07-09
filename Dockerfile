@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir \
   && addgroup --system invoice \
   && adduser --system --ingroup invoice invoice
 
+COPY backend/alembic.ini ./alembic.ini
 COPY backend/app ./app
 COPY --from=frontend-build /frontend/dist ./app/static
 
