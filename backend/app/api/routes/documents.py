@@ -4,11 +4,12 @@ import hashlib
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.audit import record_audit_log
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.domain.file.models import DocumentStatus, InvoiceDocument
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("")
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     scene: str | None = Form(default=None),
     auto_ocr: bool = Form(default=True),
@@ -62,6 +64,23 @@ async def upload_document(
         ocr_job = build_ocr_job(document, provider, validated, idempotency_key=idempotency_key)
         db.add(ocr_job)
 
+    db.flush()
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="document.upload",
+        resource_type="invoice_document",
+        resource_id=document.id,
+        metadata={
+            "original_filename": document.original_filename,
+            "file_ext": document.file_ext,
+            "file_size": document.file_size,
+            "sha256": document.sha256,
+            "auto_ocr": auto_ocr,
+            "ocr_job_id": str(ocr_job.id) if ocr_job else None,
+        },
+        request=request,
+    )
     db.commit()
     db.refresh(document)
     if ocr_job is not None:

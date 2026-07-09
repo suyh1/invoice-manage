@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.audit import record_audit_log
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.domain.invoice.duplicate import serialize_duplicate_check
@@ -90,12 +91,24 @@ def get_invoice(
 def update_invoice(
     invoice_id: UUID,
     payload: InvoicePatchPayload,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     service = InvoiceService()
     invoice = service.get_invoice(db, invoice_id, current_user)
-    updated = service.update_invoice(db, invoice, payload.model_dump(exclude_unset=True), current_user)
+    changes = payload.model_dump(exclude_unset=True)
+    updated = service.update_invoice(db, invoice, changes, current_user)
+    if changes:
+        record_audit_log(
+            db,
+            actor=current_user,
+            action="invoice.correct",
+            resource_type="invoice",
+            resource_id=updated.id,
+            metadata={"fields": list(changes.keys())},
+            request=request,
+        )
     db.commit()
     db.refresh(updated)
     return {"data": serialize_invoice_detail(updated)}

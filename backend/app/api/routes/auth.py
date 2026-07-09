@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.audit import record_audit_log
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import get_db
@@ -19,7 +20,12 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> dict[str, dict[str, str]]:
+def login(
+    payload: LoginRequest,
+    response: Response,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict[str, dict[str, str]]:
     user = authenticate_user(db, payload.email, payload.password)
     if user is None:
         raise AppError("AUTH_INVALID_CREDENTIALS", "Invalid email or password", status_code=401)
@@ -36,6 +42,16 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         samesite=settings.session_cookie_samesite,
         path="/",
     )
+    record_audit_log(
+        db,
+        actor=user,
+        action="auth.login",
+        resource_type="user",
+        resource_id=user.id,
+        metadata={"email": user.email},
+        request=request,
+    )
+    db.commit()
     return {"data": user_public_data(user)}
 
 

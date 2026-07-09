@@ -1,4 +1,6 @@
-from sqlalchemy import create_engine
+from uuid import UUID
+
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
@@ -6,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.db.base import Base, import_all_models
 from app.db.session import get_db
 from app.domain.ocr.models import OcrProviderConfig, QuotaSource
-from app.domain.user.models import UserRole
+from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
 
@@ -95,6 +97,13 @@ def test_admin_can_create_list_test_and_calibrate_provider(monkeypatch) -> None:
 
         assert create_response.status_code == 200
         provider_id = create_response.json()["data"]["id"]
+        create_audit = session.scalar(select(AuditLog).where(AuditLog.action == "ocr_provider.create"))
+        assert create_audit is not None
+        assert create_audit.actor_id == admin.id
+        assert create_audit.resource_type == "ocr_provider_config"
+        assert create_audit.resource_id == UUID(provider_id)
+        assert "AKID" not in str(create_audit.audit_metadata)
+        assert "SECRET" not in str(create_audit.audit_metadata)
 
         list_response = client.get("/api/v1/admin/ocr-providers")
         assert list_response.status_code == 200
@@ -116,6 +125,10 @@ def test_admin_can_create_list_test_and_calibrate_provider(monkeypatch) -> None:
         )
         assert calibration_response.status_code == 200
         assert calibration_response.json()["data"]["quota"]["free_quota_used"] == 950
+        quota_audit = session.scalar(select(AuditLog).where(AuditLog.action == "ocr_provider.quota_calibrate"))
+        assert quota_audit is not None
+        assert quota_audit.resource_id == UUID(provider_id)
+        assert quota_audit.audit_metadata["free_quota_used"] == 950
 
         alerts_response = client.get("/api/v1/admin/ocr-quota-alerts")
         assert alerts_response.status_code == 200
@@ -164,3 +177,11 @@ def test_admin_can_switch_default_provider_and_rotate_credentials() -> None:
         )
         assert rotate_response.status_code == 200
         assert rotate_response.json()["data"]["configured"] is True
+        default_audit = session.scalar(select(AuditLog).where(AuditLog.action == "ocr_provider.set_default"))
+        assert default_audit is not None
+        assert default_audit.resource_id == second.id
+        rotate_audit = session.scalar(select(AuditLog).where(AuditLog.action == "ocr_provider.credential_rotate"))
+        assert rotate_audit is not None
+        assert rotate_audit.resource_id == first.id
+        assert "AKID2" not in str(rotate_audit.audit_metadata)
+        assert "SECRET2" not in str(rotate_audit.audit_metadata)

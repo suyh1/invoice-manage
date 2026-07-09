@@ -36,10 +36,33 @@ COPY --from=frontend-build /frontend/dist ./app/static
 
 RUN mkdir -p /data/uploads /data/exports /data/tmp \
   && printf '#!/bin/sh\nexec python -m app.cli "$@"\n' > /usr/local/bin/invoice-app \
+  && printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'case "$1" in' \
+    '  web)' \
+    '    shift' \
+    '    exec uvicorn app.main:app --host 0.0.0.0 --port "${APP_PORT:-8080}" "$@"' \
+    '    ;;' \
+    '  worker)' \
+    '    shift' \
+    '    exec celery -A app.workers.celery_app worker --loglevel="${CELERY_LOGLEVEL:-INFO}" --concurrency="${WORKER_CONCURRENCY:-4}" "$@"' \
+    '    ;;' \
+    '  migrate)' \
+    '    shift' \
+    '    exec alembic -c /app/alembic.ini upgrade head "$@"' \
+    '    ;;' \
+    '  *)' \
+    '    exec "$@"' \
+    '    ;;' \
+    'esac' \
+    > /usr/local/bin/invoice-entrypoint \
   && chmod +x /usr/local/bin/invoice-app \
+  && chmod +x /usr/local/bin/invoice-entrypoint \
   && chown -R invoice:invoice /app /data
 
 USER invoice
 EXPOSE 8080
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+ENTRYPOINT ["invoice-entrypoint"]
+CMD ["web"]

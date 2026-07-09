@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.audit import record_audit_log
 from app.db.session import get_db
 from app.domain.export.service import ExportService, serialize_export_task
 from app.domain.user.models import User
@@ -32,10 +33,20 @@ class ExportCreatePayload(BaseModel):
 @router.post("")
 def create_export(
     payload: ExportCreatePayload,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     task = ExportService().create_task(db, payload.model_dump(), current_user)
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="export.create",
+        resource_type="export_task",
+        resource_id=task.id,
+        metadata=payload.model_dump(),
+        request=request,
+    )
     db.commit()
     db.refresh(task)
     try:

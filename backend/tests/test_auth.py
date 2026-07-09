@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 from app.api.dependencies import assert_invoice_access, require_role
 from app.cli import main as cli_main
 from app.db.session import get_db
-from app.domain.user.models import User, UserRole, UserStatus
+from app.domain.user.models import AuditLog, User, UserRole, UserStatus
 from app.domain.user.service import create_user, verify_password
 from app.main import create_app
 
@@ -22,6 +23,7 @@ def db_session() -> Session:
         poolclass=StaticPool,
     )
     User.__table__.create(engine)
+    AuditLog.__table__.create(engine)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with SessionLocal() as session:
         yield session
@@ -77,6 +79,11 @@ def test_login_me_and_logout_use_http_only_session_cookie(client: TestClient, db
     assert "session=" in login_response.headers["set-cookie"]
     assert "HttpOnly" in login_response.headers["set-cookie"]
     assert "SameSite=Lax" in login_response.headers["set-cookie"]
+    audit = db_session.query(AuditLog).filter_by(action="auth.login").one()
+    assert audit.actor_id == UUID(login_response.json()["data"]["id"])
+    assert audit.resource_type == "user"
+    assert audit.audit_metadata["email"] == "admin@example.com"
+    assert "admin-password" not in str(audit.audit_metadata)
 
     me_response = client.get("/api/v1/auth/me")
 

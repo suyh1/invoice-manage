@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.domain.file.models import InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
 from app.domain.file.validators import validate_upload
-from app.domain.user.models import User, UserRole
+from app.domain.user.models import AuditLog, User, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
 
@@ -75,6 +75,7 @@ def db_session() -> Session:
         poolclass=StaticPool,
     )
     User.__table__.create(engine)
+    AuditLog.__table__.create(engine)
     InvoiceDocument.__table__.create(engine)
     session_local = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with session_local() as session:
@@ -207,3 +208,9 @@ def test_upload_document_creates_document_without_ocr_job_when_no_provider(
     assert saved.page_count == 1
     assert saved.status.value == "uploaded"
     assert (tmp_path / saved.storage_key).exists()
+    audit = db_session.query(AuditLog).filter_by(action="document.upload").one()
+    assert audit.actor_id == user.id
+    assert audit.resource_type == "invoice_document"
+    assert audit.resource_id == saved.id
+    assert audit.audit_metadata["original_filename"] == "invoice.png"
+    assert audit.audit_metadata["file_ext"] == "png"

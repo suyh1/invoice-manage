@@ -8,6 +8,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.core.audit import record_audit_log
 from app.core.config import OCR_RETRY_DEFAULTS, get_settings
 from app.core.errors import AppError
 from app.db.session import SessionLocal
@@ -183,6 +184,20 @@ def _apply_successful_result(db: Session, job: OcrJob, result: OcrRecognitionRes
     job.status = OcrJobStatus.completed
     job.finished_at = now
     job.document.status = DocumentStatus.ocr_done
+    db.flush()
+    record_audit_log(
+        db,
+        actor_id=job.document.uploaded_by,
+        action="ocr.completed",
+        resource_type="ocr_job",
+        resource_id=job.id,
+        metadata={
+            "provider": job.provider,
+            "request_id": job.request_id,
+            "invoice_id": str(invoice.id),
+            "duration_ms": (job.raw_request_meta or {}).get("duration_ms"),
+        },
+    )
 
 
 def _apply_provider_failure(job: OcrJob, exc: AppError, *, now: datetime) -> None:

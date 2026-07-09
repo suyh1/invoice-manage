@@ -1,0 +1,88 @@
+name: invoice-ocr
+
+services:
+  app:
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.1.0}
+    platform: linux/amd64
+    command: ["web"]
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - app_uploads:/data/uploads
+      - app_exports:/data/exports
+      - app_tmp:/data/tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/readyz', timeout=2)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.1.0}
+    platform: linux/amd64
+    command: ["worker"]
+    env_file:
+      - path: .env
+        required: false
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - app_uploads:/data/uploads
+      - app_exports:/data/exports
+      - app_tmp:/data/tmp
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  postgres:
+    image: postgres:16.3-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-invoice_app}
+      POSTGRES_USER: ${POSTGRES_USER:-invoice_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-invoice_app} -d ${POSTGRES_DB:-invoice_app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.2-bookworm
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  app_exports:
+  app_tmp:
+  app_uploads:
+  postgres_data:
+  redis_data:

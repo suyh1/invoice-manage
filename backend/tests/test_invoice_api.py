@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceCorrection, InvoiceItem, InvoiceStatus
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, QuotaSource
-from app.domain.user.models import UserRole
+from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
 
@@ -231,6 +231,12 @@ def test_invoice_patch_updates_fields_and_logs_corrections() -> None:
             ("seller_name", "上海云栖酒店", "上海云栖酒店", "上海云栖酒店管理有限公司"),
             ("amount_with_tax", "729.28", "729.28", "730.00"),
         ]
+        audit = session.scalar(select(AuditLog).where(AuditLog.action == "invoice.correct"))
+        assert audit is not None
+        assert audit.actor_id == owner.id
+        assert audit.resource_type == "invoice"
+        assert audit.resource_id == invoice.id
+        assert audit.audit_metadata["fields"] == ["seller_name", "amount_with_tax"]
 
 
 def test_invoice_confirm_archive_and_soft_delete() -> None:

@@ -7,7 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -18,7 +18,7 @@ from app.domain.export.service import run_export_task
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, QuotaSource
-from app.domain.user.models import UserRole
+from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
 
@@ -127,6 +127,12 @@ def test_create_list_detail_and_download_json_export(tmp_path) -> None:
         task = session.get(ExportTask, UUID(export_id))
         assert task.status == ExportStatus.queued
         assert task.created_by == user.id
+        audit = session.scalar(select(AuditLog).where(AuditLog.action == "export.create"))
+        assert audit is not None
+        assert audit.actor_id == user.id
+        assert audit.resource_type == "export_task"
+        assert audit.resource_id == task.id
+        assert audit.audit_metadata["format"] == "json"
 
         run_export_task(task.id, db=session, export_root=tmp_path)
         list_response = client.get("/api/v1/exports")

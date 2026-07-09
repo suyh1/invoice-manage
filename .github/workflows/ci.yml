@@ -43,3 +43,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run mock invoice flow
         run: tests/e2e/run.sh
+
+  image-security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build linux amd64 image
+        run: docker buildx build --platform linux/amd64 -t invoice-ocr-app:ci --load .
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: invoice-ocr-app:ci
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-ocr-sbom
+          path: sbom.spdx.json
+      - name: Vulnerability scan
+        uses: anchore/scan-action@v6
+        with:
+          image: invoice-ocr-app:ci
+          fail-build: true
+          severity-cutoff: critical

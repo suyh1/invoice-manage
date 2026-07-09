@@ -14,7 +14,7 @@ from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.client import OcrRecognitionResult
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderUsageDaily
 from app.domain.ocr.provider_config import OcrProviderConfigService
-from app.domain.user.models import UserRole
+from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_user
 from app.workers.tasks import process_ocr_job
 
@@ -148,6 +148,12 @@ def test_process_ocr_job_completes_and_normalizes_invoice(tmp_path) -> None:
         usage = session.scalar(select(OcrProviderUsageDaily))
         assert usage.successful_calls == 1
         assert usage.estimated_billable_calls == 1
+        audit = session.scalar(select(AuditLog).where(AuditLog.action == "ocr.completed"))
+        assert audit is not None
+        assert audit.actor_id == job.document.uploaded_by
+        assert audit.resource_type == "ocr_job"
+        assert audit.resource_id == job.id
+        assert audit.audit_metadata["request_id"] == "req-success-001"
 
 
 def test_process_ocr_job_schedules_retry_for_retryable_provider_error(tmp_path) -> None:
