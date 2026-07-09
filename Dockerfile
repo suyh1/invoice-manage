@@ -29,6 +29,8 @@ COPY backend/app ./app
 COPY --from=frontend-build /frontend/dist ./app/static
 
 RUN mkdir -p /data/uploads /data/exports /data/tmp \
+  && printf '#!/bin/sh\nexec python -m app.cli "$@"\n' > /usr/local/bin/invoice-app \
+  && chmod +x /usr/local/bin/invoice-app \
   && chown -R invoice:invoice /app /data
 
 USER invoice

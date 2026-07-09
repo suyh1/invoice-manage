@@ -13,6 +13,9 @@ dependencies = [
   "sqlalchemy==2.0.51",
 ]
 
+[project.scripts]
+invoice-app = "app.cli:main"
+
 [project.optional-dependencies]
 test = [
   "httpx==0.28.1",
