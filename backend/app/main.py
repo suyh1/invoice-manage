@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.documents import router as documents_router
 from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler
 
@@ -13,6 +14,7 @@ def create_app() -> FastAPI:
     application = FastAPI(title="Invoice OCR", version="0.1.0")
     application.add_exception_handler(AppError, app_error_handler)
     application.include_router(auth_router)
+    application.include_router(documents_router)
 
     @application.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, str]:
