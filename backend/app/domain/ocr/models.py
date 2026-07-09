@@ -6,11 +6,10 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, String, UniqueConstraint, func, text
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import TENCENT_OCR_DEFAULTS
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, JSON_VARIANT, TimestampMixin
 
 
 class OcrJobStatus(str, enum.Enum):
@@ -52,7 +51,7 @@ class OcrProviderConfig(Base, TimestampMixin):
     display_name: Mapped[str] = mapped_column(String(120), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    credential_ciphertext: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    credential_ciphertext: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
     credential_fingerprint: Mapped[str | None] = mapped_column(String(120))
     endpoint: Mapped[str] = mapped_column(String(255), default=TENCENT_OCR_DEFAULTS.endpoint, nullable=False)
     region: Mapped[str] = mapped_column(String(80), default=TENCENT_OCR_DEFAULTS.region, nullable=False)
@@ -82,7 +81,13 @@ class OcrProviderConfig(Base, TimestampMixin):
     quota_alerts = relationship("OcrQuotaAlert", back_populates="provider_config")
 
     __table_args__ = (
-        Index("ix_ocr_provider_configs_single_default", "is_default", unique=True, postgresql_where=text("enabled AND is_default")),
+        Index(
+            "ix_ocr_provider_configs_single_default",
+            "is_default",
+            unique=True,
+            postgresql_where=text("enabled AND is_default"),
+            sqlite_where=text("enabled = 1 AND is_default = 1"),
+        ),
         Index("ix_ocr_provider_configs_provider_enabled", "provider", "enabled"),
     )
 
@@ -157,8 +162,8 @@ class OcrJob(Base):
     error_code: Mapped[str | None] = mapped_column(String(120))
     provider_error_code: Mapped[str | None] = mapped_column(String(120))
     error_message: Mapped[str | None] = mapped_column(String(1000))
-    raw_request_meta: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    raw_response: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    raw_request_meta: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
+    raw_response: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

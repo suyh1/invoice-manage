@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import JSON, DateTime, MetaData, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -18,9 +18,12 @@ metadata = MetaData(
 )
 
 
+JSON_VARIANT = JSON().with_variant(JSONB, "postgresql")
+
+
 class Base(DeclarativeBase):
     metadata = metadata
-    type_annotation_map = {dict[str, Any]: JSONB}
+    type_annotation_map = {dict[str, Any]: JSON_VARIANT}
 
 
 class TimestampMixin:
@@ -36,4 +39,4 @@ def import_all_models() -> None:
     from app.domain.user import models as user_models  # noqa: F401
 
 
-__all__ = ["Base", "TimestampMixin", "UUID", "import_all_models"]
+__all__ = ["Base", "JSON_VARIANT", "TimestampMixin", "UUID", "import_all_models"]

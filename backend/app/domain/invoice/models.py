@@ -7,10 +7,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Index, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import Base, JSON_VARIANT
 
 
 class InvoiceStatus(str, enum.Enum):
@@ -58,9 +57,9 @@ class Invoice(Base):
         nullable=False,
     )
     is_duplicate_suspected: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    raw_ocr_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    normalized_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
-    extra_fields: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    raw_ocr_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
+    normalized_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
+    extra_fields: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
     confirmed_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -99,7 +98,7 @@ class InvoiceItem(Base):
     amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
     tax_rate: Mapped[Decimal | None] = mapped_column(Numeric(8, 4))
     tax_amount: Mapped[Decimal | None] = mapped_column(Numeric(18, 2))
-    raw_item_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    raw_item_json: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
 
     invoice = relationship("Invoice", back_populates="items")
 

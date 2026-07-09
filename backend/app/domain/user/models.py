@@ -6,10 +6,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, JSON_VARIANT, TimestampMixin
 
 
 class UserRole(str, enum.Enum):
@@ -56,7 +55,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(120), nullable=False)
     resource_id: Mapped[UUID | None]
-    audit_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, default=dict, nullable=False)
+    audit_metadata: Mapped[dict[str, Any]] = mapped_column("metadata", JSON_VARIANT, default=dict, nullable=False)
     ip_address: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

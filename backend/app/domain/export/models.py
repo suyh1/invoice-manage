@@ -6,10 +6,9 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import Base, JSON_VARIANT
 
 
 class ExportFormat(str, enum.Enum):
@@ -33,7 +32,7 @@ class ExportTask(Base):
     format: Mapped[ExportFormat] = mapped_column(
         Enum(ExportFormat, name="export_format", native_enum=False, create_constraint=True), nullable=False
     )
-    filters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    filters: Mapped[dict[str, Any] | None] = mapped_column(JSON_VARIANT)
     status: Mapped[ExportStatus] = mapped_column(
         Enum(ExportStatus, name="export_status", native_enum=False, create_constraint=True),
         default=ExportStatus.queued,

@@ -1,0 +1,5 @@
+{
+  "code": "RequestLimitExceeded",
+  "message": "request rate limit exceeded",
+  "request_id": "req-rate-limit-001"
+}

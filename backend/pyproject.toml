@@ -12,6 +12,8 @@ dependencies = [
   "uvicorn[standard]==0.35.0",
   "pydantic-settings==2.10.1",
   "sqlalchemy==2.0.51",
+  "tencentcloud-sdk-python-common==3.1.129",
+  "tencentcloud-sdk-python-ocr==3.1.128",
 ]
 
 [project.scripts]

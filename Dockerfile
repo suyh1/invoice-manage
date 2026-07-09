@@ -20,6 +20,8 @@ RUN pip install --no-cache-dir \
     "fastapi==0.116.0" \
     "python-multipart==0.0.20" \
     "psycopg[binary]==3.2.13" \
+    "tencentcloud-sdk-python-common==3.1.129" \
+    "tencentcloud-sdk-python-ocr==3.1.128" \
     "sqlalchemy==2.0.51" \
     "uvicorn[standard]==0.35.0" \
     "pydantic-settings==2.10.1" \
