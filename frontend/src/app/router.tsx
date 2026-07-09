@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { DashboardPage } from "../pages/DashboardPage";
+import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
+import { InvoiceListPage } from "../pages/InvoiceListPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { UploadPage } from "../pages/UploadPage";
 
@@ -9,6 +11,9 @@ export type AppRouteId = "dashboard" | "invoices" | "upload" | "review" | "expor
 export type AppRoute = {
   id: AppRouteId;
   label: string;
+  params?: {
+    invoiceId?: string;
+  };
   path: string;
   badge?: string;
 };
@@ -32,6 +37,9 @@ export function useHashRoute() {
   }, []);
 
   return useMemo(() => {
+    if (hash.startsWith("#/invoices/")) {
+      return { ...appRoutes[1], label: "发票详情", params: { invoiceId: hash.replace("#/invoices/", "") } };
+    }
     return appRoutes.find((route) => route.path === hash) ?? appRoutes[0];
   }, [hash]);
 }
@@ -42,6 +50,12 @@ export function renderRoute(route: AppRoute) {
   }
   if (route.id === "dashboard") {
     return <DashboardPage />;
+  }
+  if (route.id === "invoices" && route.params?.invoiceId) {
+    return <InvoiceDetailPage invoiceId={route.params.invoiceId} />;
+  }
+  if (route.id === "invoices") {
+    return <InvoiceListPage />;
   }
   if (route.id === "upload") {
     return <UploadPage />;
