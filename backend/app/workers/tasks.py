@@ -24,6 +24,15 @@ from app.domain.ocr.registry import get_registry
 from app.workers.celery_app import celery_app
 
 
+@celery_app.task(name="app.workers.run_export_task")
+def run_export_task_task(task_id: str) -> str:
+    from app.domain.export.service import run_export_task
+
+    with SessionLocal() as session:
+        task = run_export_task(task_id, db=session)
+        return str(task.id)
+
+
 @celery_app.task(name="app.workers.process_ocr_job", bind=True)
 def process_ocr_job_task(self, job_id: str) -> str:
     job = process_ocr_job(job_id)
