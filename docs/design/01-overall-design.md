@@ -1,4 +1,4 @@
-# 发票集中存储与腾讯云 OCR 识别系统完整设计
+# 发票集中存储与多运营商 OCR 识别系统完整设计
 
 版本：v0.1
 
@@ -10,17 +10,17 @@
 
 本项目是一个可私有化部署的“发票资料库 + OCR 识别工作台”。它面向出差、采购、餐饮、交通、住宿、办公采购等场景，帮助用户集中存储发票原件，自动识别票面字段，人工校对后检索、归档、导出。
 
-系统不定位为完整报销审批系统，也不定位为税务申报或财务入账系统。MVP 只完成发票的集中管理、腾讯云 OCR 识别、校对、重复检测、查询和导出闭环。
+系统不定位为完整报销审批系统，也不定位为税务申报或财务入账系统。MVP 只完成发票的集中管理、OCR 识别、校对、重复检测、查询和导出闭环。OCR 识别默认接入腾讯云 `VatInvoiceOCR`，但系统必须保留多运营商配置和适配层，后续可接入阿里云等 OCR 服务。
 
 ## 2. 设计目标
 
 1. 在 `linux x86_64` 架构上交付 Docker 镜像。
-2. 用户部署时只需填写腾讯云 `SecretId` 和 `SecretKey` 即可接入 OCR。
-3. OCR 识别固定接入腾讯云 `VatInvoiceOCR`。
-4. 系统前置校验腾讯云官方限制，减少无效调用和额度浪费。
+2. 部署环境变量只配置基础设施参数，OCR 运营商、密钥、限流和额度阈值由管理员在系统设置页维护。
+3. MVP 默认 OCR 运营商为腾讯云 `VatInvoiceOCR`，但后端以 provider adapter 方式实现，保留阿里云等运营商扩展点。
+4. 系统前置校验当前 OCR 运营商官方限制，减少无效调用和免费额度浪费。
 5. 支持发票原件、OCR 原始响应、结构化字段和人工校对记录长期保存。
 6. 支持普通用户、财务用户、管理员三类角色。
-7. 支持 mock OCR，确保无真实腾讯云密钥时也能本地开发和 CI 测试。
+7. 支持 mock OCR，确保无真实运营商密钥时也能本地开发和 CI 测试。
 8. 后续实现必须以本文档和实施计划为准。
 
 ## 3. 反范围
@@ -31,24 +31,34 @@ MVP 明确不做：
 - 税务申报
 - 自动生成会计凭证或自动入账
 - 发票真伪查验
-- 多 OCR 供应商适配
 - 企业级 SSO、LDAP、OIDC
 - 原生移动 App
 - 多页 PDF 自动整本识别
 - 默认远程 URL 识别
 
-二期可扩展报销单、审批、组织架构、发票查验、企业 SSO、COS/MinIO、外部财务系统集成。
+二期可扩展报销单、审批、组织架构、发票查验、企业 SSO、COS/MinIO、阿里云 OCR 适配、外部财务系统集成。
 
-## 4. 官方 OCR 约束
+## 4. OCR 运营商与官方约束
 
-实现必须内置以下约束：
+系统必须把 OCR 接入建模为可切换运营商配置：
+
+| 项 | MVP 设计值 |
+|---|---|
+| 默认运营商 | `tencent` |
+| 默认接口 | `VatInvoiceOCR` |
+| 后续预留运营商 | `aliyun`、`mock` |
+| 配置入口 | 管理员设置页 |
+| 密钥来源 | 数据库加密保存，不通过 `.env` 或 Docker `environment` 注入 |
+| 生效策略 | 只有一个默认启用运营商；后续可扩展按租户、发票类型或队列路由 |
+
+MVP 中腾讯云适配器必须内置以下约束：
 
 | 项 | 设计值 |
 |---|---|
 | Endpoint | `ocr.tencentcloudapi.com` |
 | Action | `VatInvoiceOCR` |
 | Version | `2018-11-19` |
-| 默认 QPS | 10 次/秒 |
+| 官方默认 QPS | 10 次/秒 |
 | 推荐内部默认 QPS | 8 次/秒 |
 | 输入 | `ImageBase64` 优先 |
 | 支持格式 | PNG、JPG、JPEG、PDF |
@@ -58,6 +68,13 @@ MVP 明确不做：
 | PDF | `IsPdf=true`，一期仅支持单页 |
 | 远程下载 | 腾讯云限制 3 秒，MVP 默认不开 |
 | 必存输出 | `VatInvoiceInfos`、`Items`、`PdfPageSize`、`Angle`、`RequestId` |
+
+免费额度与资源包：
+
+- 腾讯云 OCR 存在免费额度或资源包/后付费等计费状态，系统应鼓励用户优先使用已有免费额度或资源包。
+- 管理员设置页必须支持录入或同步当前运营商的免费额度、资源包总量、已用量、周期重置日和提醒阈值。
+- 在免费额度或资源包接近用完前，系统必须在总览页、设置页和上传/OCR 队列中提示管理员和财务用户。
+- 若运营商 API 无法直接查询剩余额度，系统至少基于本系统 OCR 成功调用量进行估算，并允许管理员手动校准。
 
 ## 5. 用户与角色
 
@@ -75,12 +92,13 @@ MVP 明确不做：
 - 校对和修正发票字段
 - 处理疑似重复
 - 批量确认、归档、导出
-- 查看 OCR 失败原因和腾讯云 `RequestId`
+- 查看 OCR 失败原因、运营商错误码和运营商请求 ID
+- 查看免费额度或资源包即将耗尽提醒
 
 ### 5.3 管理员
 
 - 管理用户、角色和权限
-- 配置腾讯云 OCR 凭据
+- 配置 OCR 运营商、凭据、限流、额度提醒阈值
 - 查看系统健康和任务队列
 - 管理上传限制、存储、导出模板
 - 查看审计日志
@@ -94,7 +112,7 @@ flowchart LR
   B --> C["保存原始文件"]
   C --> D["创建 OCR 作业"]
   D --> E["异步队列限流"]
-  E --> F["调用腾讯云 VatInvoiceOCR"]
+  E --> F["调用默认 OCR 运营商"]
   F --> G["保存原始响应"]
   G --> H["字段归一化"]
   H --> I["人工校对"]
@@ -184,17 +202,17 @@ flowchart TB
   R --> W["worker 容器<br/>Celery OCR/Export"]
   W --> DB
   W --> FS
-  W --> TC["腾讯云 OCR<br/>ocr.tencentcloudapi.com"]
+  W --> OCR["OCR 运营商<br/>腾讯云 / 后续阿里云"]
 ```
 
 ### 8.1 模块边界
 
 | 模块 | 职责 |
 |---|---|
-| `core` | 配置、日志、鉴权、密钥读取、通用异常、限流基础 |
+| `core` | 配置、日志、鉴权、系统加密密钥、通用异常、限流基础 |
 | `api` | REST 路由、请求响应模型、权限入口 |
 | `domain/file` | 上传、MIME/魔数、大小、像素、PDF 单页、落盘 |
-| `domain/ocr` | 腾讯云 SDK 封装、限流、错误映射、响应归一化 |
+| `domain/ocr` | 运营商配置、适配器注册表、腾讯云 SDK 封装、限流、额度跟踪、错误映射、响应归一化 |
 | `domain/invoice` | 发票主表、明细、状态机、人工校对、重复检测 |
 | `domain/export` | CSV/XLSX/JSON 导出任务 |
 | `domain/user` | 用户、角色、权限 |
@@ -307,22 +325,24 @@ stateDiagram-v2
 
 ### 9.3 OCR 调用封装
 
-后端只允许通过 `TencentVatInvoiceOcrClient` 调用腾讯云：
+后端只允许通过 `OcrProviderClient` 协议调用 OCR 运营商。MVP 实现 `TencentVatInvoiceOcrClient`，并注册到 `OcrProviderRegistry`：
 
-- 从环境变量读取 `TENCENTCLOUD_SECRET_ID` 和 `TENCENTCLOUD_SECRET_KEY`
-- 固定 endpoint、Action、Version
-- 默认 region 为 `ap-guangzhou`，可配置覆盖
-- 本地文件转 Base64 传 `ImageBase64`
-- PDF 自动传 `IsPdf=true` 和 `PdfPageNumber=1`
-- 调用前经过 Redis 令牌桶限流
-- 捕获 SDK 异常并映射为内部错误
-- 日志禁止输出 Secret、Authorization、完整 Base64
+- OCR 供应商配置从数据库读取，密钥字段加密保存。
+- 不通过 `.env`、Docker `environment` 或 compose 明文变量配置腾讯云 `SecretId` / `SecretKey`。
+- 腾讯云适配器内置 endpoint、Action、Version 默认值；管理员可在设置页查看并按需覆盖非敏感项。
+- 默认 region 为 `ap-guangzhou`，可在设置页配置覆盖。
+- 本地文件转 Base64 传 `ImageBase64`。
+- PDF 自动传 `IsPdf=true` 和 `PdfPageNumber=1`。
+- 调用前经过 Redis 令牌桶限流，限流 key 必须包含 provider、action 和 region。
+- 每次调用后更新运营商用量统计，用于免费额度或资源包提醒。
+- 捕获 SDK 异常并映射为内部错误。
+- 日志禁止输出 Secret、Authorization、完整 Base64。
 
 ## 10. OCR 结果归一化
 
 系统必须双写：
 
-1. `raw_ocr_payload`：腾讯云完整 JSON。
+1. `raw_ocr_payload`：运营商完整 JSON。
 2. `invoices` 和 `invoice_items`：业务字段。
 
 归一化规则：
@@ -332,7 +352,7 @@ stateDiagram-v2
 - 税率统一为 Decimal，如 `0.13`。
 - 发票代码、号码、税号全部按字符串保存。
 - 买卖方名称只做 trim，不做过度清洗。
-- 无法归一的腾讯云字段进入 `extra_fields` JSONB。
+- 无法归一的运营商字段进入 `extra_fields` JSONB。
 - 人工修正不覆盖原始 OCR 值，必须保留 correction log。
 
 ## 11. 重复检测
@@ -374,7 +394,7 @@ MVP 使用规则检测疑似重复：
 | 发票详情 | 左侧原件预览，右侧字段校对和明细编辑 |
 | 待校对 | 聚合字段缺失、金额异常、低置信度、疑似重复 |
 | 导出记录 | 导出任务、下载、失败原因、导出元信息 |
-| 设置 | OCR 凭据、上传限制、字段规则、存储导出、系统健康 |
+| 设置 | OCR 运营商、凭据、额度提醒、上传限制、字段规则、存储导出、系统健康 |
 
 ### 12.3 上传体验
 
@@ -391,10 +411,11 @@ MVP 使用规则检测疑似重复：
 
 关键文案必须直给：
 
-- GIF 不支持：`腾讯云 VatInvoiceOCR 不支持 GIF，请转换为 PNG/JPG/PDF 后上传。`
+- GIF 不支持：`当前 OCR 运营商不支持 GIF，请转换为 PNG/JPG/PDF 后上传。`
 - 文件过大：`文件 Base64 编码后可能超过 10MB，请压缩后重试。`
 - PDF 多页：`PDF 需要以单页方式识别，请拆分后上传。`
-- 凭证错误：`SecretId 或 SecretKey 校验失败，请在设置中更新凭证。`
+- 凭证错误：`OCR 运营商凭据校验失败，请在设置中更新凭据。`
+- 额度提醒：`OCR 免费额度即将用完，请在设置中检查资源包或计费方式。`
 
 ### 12.4 发票详情校对
 
@@ -434,11 +455,12 @@ MVP 使用规则检测疑似重复：
 
 ### 13.1 密钥
 
-- Secret 只从环境变量或 Docker Secret 读取。
-- 不写入数据库。
+- OCR 运营商密钥由管理员在设置页录入、测试、启用和轮换。
+- OCR 运营商密钥必须加密写入数据库，使用应用级加密密钥解密；应用级加密密钥可通过环境变量或 Docker Secret 提供。
+- 不通过 `.env` 或 Docker `environment` 传递腾讯云 `SecretId` / `SecretKey`。
 - 不写入日志。
 - 不返回前端。
-- 配置页只显示“已配置/未配置”和测试结果，不回显完整 SecretKey。
+- 配置页只显示“已配置/未配置”、不可逆凭据摘要和测试结果，不回显完整 SecretId 或 SecretKey。
 - 推荐使用腾讯云 CAM 子账号，不使用主账号密钥。
 - 推荐最小权限，仅授予 OCR 访问权限。
 
@@ -473,9 +495,10 @@ MVP 使用规则检测疑似重复：
 - OCR 失败数
 - 队列积压
 - 平均识别耗时
-- 腾讯云错误码分布
+- 运营商错误码分布
 - 上传文件量和存储占用
 - 导出任务成功率
+- OCR 免费额度或资源包剩余额度
 
 审计日志：
 
@@ -485,6 +508,7 @@ MVP 使用规则检测疑似重复：
 - 人工校对字段变更
 - 导出行为
 - 配置和权限变更
+- OCR 运营商配置、密钥轮换、额度阈值变更
 
 ## 15. 测试策略
 
@@ -497,7 +521,7 @@ MVP 使用规则检测疑似重复：
 
 原则：
 
-- 常规测试不调用真实腾讯云。
+- 常规测试不调用真实 OCR 运营商。
 - 使用 mock OCR server 和 fixture。
 - 真实 OCR 只在 `OCR_LIVE_TESTS=1` 或 release gate 中少量运行。
 - Live test 只断言响应结构、`RequestId` 和解析能力，不断言金额等易变识别结果。
@@ -510,7 +534,7 @@ MVP 使用规则检测疑似重复：
 - 使用 docker compose 运行 app、worker、postgres、redis。
 - 数据、上传、导出必须挂载 volume。
 - 生产建议 HTTPS 反代。
-- 默认内部 OCR QPS 为 8。
+- 默认内部 OCR QPS 为 8，按运营商配置覆盖。
 - 容器重启不能丢数据。
 
 完整部署步骤见 [Linux x86_64 Docker 部署指南](../deployment/linux-amd64-docker-deployment.md)。
@@ -520,15 +544,17 @@ MVP 使用规则检测疑似重复：
 MVP 最低验收：
 
 - 可在 linux x86_64 通过 Docker 部署。
-- 用户只配置 SecretId 和 SecretKey。
+- 管理员可在设置页配置腾讯云 OCR 凭据、测试连接、启用默认运营商并轮换密钥。
+- `.env` 和 Docker `environment` 不包含腾讯云 `SecretId` / `SecretKey`。
+- OCR 运营商配置模型保留阿里云等后续扩展能力。
 - 上传合法 PNG/JPG/JPEG/PDF 后可完成识别并保存结果。
 - GIF、超限文件、非法像素、多页 PDF 有明确错误。
-- OCR 请求符合腾讯云官方约束。
+- 腾讯云适配器的 OCR 请求符合腾讯云官方约束。
 - OCR 结果保存 RequestId、VatInvoiceInfos、Items、PdfPageSize、Angle。
 - 默认限流不超过 10 次/秒。
+- 页面能显示免费额度或资源包余量，并在阈值前通知用户即将用完。
 - 密钥和敏感信息不会进入日志。
 - 发票可列表、筛选、详情查看、人工校对、导出。
 - 普通用户不能越权访问他人发票。
 - 单元、集成、E2E mock 测试通过。
 - 镜像经过漏洞扫描和冒烟测试。
-

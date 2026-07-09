@@ -11,7 +11,7 @@
 - 目标系统：Linux x86_64
 - Docker 平台：`linux/amd64`
 - 运行方式：Docker Compose
-- 用户必填腾讯云参数：`TENCENTCLOUD_SECRET_ID`、`TENCENTCLOUD_SECRET_KEY`
+- OCR 运营商凭据：首次登录后在管理员设置页配置，不写入 `.env` 或 Docker `environment`
 - 生产建议：HTTPS 反向代理 + PostgreSQL volume + Redis volume + 上传文件 volume
 
 ## 2. 腾讯云准备
@@ -20,8 +20,9 @@
 2. 开通文字识别 OCR 服务。
 3. 创建 CAM 子账号或子用户密钥，不使用主账号密钥。
 4. 为子账号授予 OCR 调用权限。若支持接口级权限，限制到 `VatInvoiceOCR`；否则限制到 OCR 服务访问。
-5. 获取 `SecretId` 和 `SecretKey`。
-6. 确认账号未欠费，资源包或后付费状态正常。
+5. 获取 `SecretId` 和 `SecretKey`，仅在系统设置页录入。
+6. 确认账号未欠费，免费额度、资源包或后付费状态正常。
+7. 在腾讯云控制台确认当前免费额度或资源包余量，后续在系统设置页填写提醒阈值。
 
 ## 3. 推荐拓扑
 
@@ -44,12 +45,13 @@ app_tmp       -> /data/tmp
 
 ## 4. 环境变量
 
+环境变量只用于基础设施和应用级安全参数。OCR 运营商密钥必须在系统设置页配置，避免在部署文件、shell history、compose 输出或容器环境中泄露。
+
 ### 4.1 最小必填
 
 ```env
-TENCENTCLOUD_SECRET_ID=请填写腾讯云SecretId
-TENCENTCLOUD_SECRET_KEY=请填写腾讯云SecretKey
 APP_SECRET_KEY=请生成至少32字节随机字符串
+OCR_CONFIG_ENCRYPTION_KEY=请生成32字节以上随机字符串
 POSTGRES_PASSWORD=请生成数据库密码
 ```
 
@@ -77,26 +79,12 @@ STORAGE_PATH=/data/uploads
 EXPORT_PATH=/data/exports
 TMP_PATH=/data/tmp
 
-TENCENTCLOUD_SECRET_ID=change-me
-TENCENTCLOUD_SECRET_KEY=change-me
-TENCENTCLOUD_REGION=ap-guangzhou
-TENCENTCLOUD_OCR_ENDPOINT=ocr.tencentcloudapi.com
-TENCENTCLOUD_OCR_ACTION=VatInvoiceOCR
-TENCENTCLOUD_OCR_VERSION=2018-11-19
-TENCENTCLOUD_OCR_QPS=8
-OCR_TIMEOUT_SECONDS=15
-OCR_REMOTE_DOWNLOAD_TIMEOUT_SECONDS=3
-
-OCR_ALLOWED_TYPES=png,jpg,jpeg,pdf
-OCR_MAX_BASE64_MB=10
-OCR_MIN_IMAGE_PX=20
-OCR_MAX_IMAGE_PX=10000
-OCR_PDF_SINGLE_PAGE_ONLY=true
+OCR_CONFIG_ENCRYPTION_KEY=change-me-use-openssl-rand-base64-32
 
 WORKER_CONCURRENCY=4
-OCR_RETRY_MAX=3
-OCR_RETRY_BACKOFF_SECONDS=10,30,120
 ```
+
+OCR 运营商、上传约束、QPS、重试策略和额度提醒使用系统默认值，并可在管理员设置页维护；不建议放入 `.env`。
 
 `.env` 文件权限建议：
 
@@ -105,6 +93,8 @@ chmod 600 .env
 ```
 
 不要把 `.env` 提交到 Git。
+
+不要在 `.env`、`docker-compose.yml` 的 `environment` 或运行命令中填写腾讯云 `SecretId` / `SecretKey`。这些值只能在管理员设置页录入，并由应用加密保存。
 
 ## 5. 镜像构建
 
@@ -226,6 +216,16 @@ docker compose exec app invoice-app create-admin \
   --password 'change-me'
 ```
 
+首次配置 OCR：
+
+1. 使用管理员账号登录系统。
+2. 打开“设置 -> OCR 运营商”。
+3. 选择“腾讯云 OCR”，录入 `SecretId` 和 `SecretKey`。
+4. 确认 endpoint 为 `ocr.tencentcloudapi.com`，Action 为 `VatInvoiceOCR`，Version 为 `2018-11-19`。
+5. 设置内部 QPS，默认 8，不应超过腾讯云官方默认限制。
+6. 填写免费额度或资源包总量、已用量、重置日和提醒阈值。
+7. 点击连接测试，成功后设为默认启用运营商。
+
 健康检查：
 
 ```bash
@@ -274,7 +274,7 @@ Cookie 要求：
 | 中等团队 | 4 vCPU | 8GB | 200GB+ SSD |
 | 大批量归档 | 8 vCPU | 16GB | 按发票原件估算并预留备份空间 |
 
-OCR 调用受腾讯云默认 10 次/秒限制。系统默认应设置 `TENCENTCLOUD_OCR_QPS=8`，避免贴边触发限流。
+OCR 调用受运营商官方频率限制。腾讯云 `VatInvoiceOCR` 默认限制为 10 次/秒，系统设置页默认内部限流应为 8 次/秒，避免贴边触发限流。
 
 ## 10. 备份
 
@@ -284,6 +284,7 @@ OCR 调用受腾讯云默认 10 次/秒限制。系统默认应设置 `TENCENTCL
 - `/data/uploads`
 - `/data/exports`
 - `.env` 的加密备份
+- 数据库中的 OCR 运营商加密配置，以及对应的 `OCR_CONFIG_ENCRYPTION_KEY`
 - 当前 `docker-compose.yml`
 
 数据库备份：
@@ -361,30 +362,35 @@ docker compose up -d
 ## 13. 密钥轮换
 
 1. 在腾讯云创建新的 SecretId/SecretKey。
-2. 更新 `.env`。
-3. 重启 app 和 worker：
+2. 登录管理员设置页，打开“腾讯云 OCR”配置。
+3. 使用“轮换凭据”录入新 SecretId/SecretKey。
+4. 执行 OCR 测试。
+5. 测试成功后保存并启用新凭据。
+6. 确认生产识别成功后，在腾讯云控制台禁用旧密钥。
 
-```bash
-docker compose up -d app worker
-```
-
-4. 在管理员设置页执行 OCR 测试。
-5. 确认成功后禁用旧密钥。
+密钥轮换不需要修改 `.env`，也不需要重启 app 或 worker，除非同时轮换了 `OCR_CONFIG_ENCRYPTION_KEY`。
 
 ## 14. 故障排查
 
 ### 14.1 凭证错误
 
-- 检查 `TENCENTCLOUD_SECRET_ID`
-- 检查 `TENCENTCLOUD_SECRET_KEY`
+- 在管理员设置页检查 OCR 运营商是否启用并设为默认
+- 在管理员设置页重新执行连接测试
 - 检查是否使用 CAM 子账号
 - 检查 OCR 权限和服务是否开通
 
 ### 14.2 OCR 限流
 
-- 降低 `TENCENTCLOUD_OCR_QPS`
+- 在设置页降低当前 OCR 运营商的 QPS
 - 查看 worker 数和队列积压
 - 检查是否批量重新识别
+
+### 14.2.1 免费额度或资源包即将耗尽
+
+- 查看设置页的当前免费额度、资源包余量和阈值
+- 若运营商无法自动同步额度，按腾讯云控制台数据手动校准
+- 额度不足时购买资源包、开通后付费或暂停批量识别
+- 确认提醒处理后，可在设置页标记为已确认
 
 ### 14.3 文件不支持
 
@@ -409,13 +415,15 @@ docker compose exec worker curl -I https://ocr.tencentcloudapi.com
 
 - Nginx 检查 `client_max_body_size`
 - Caddy 检查 `request_body max_size`
-- 应用检查 `OCR_MAX_BASE64_MB`
+- 应用检查当前上传限制设置和 OCR 运营商输入约束
 
 ## 15. 安全加固清单
 
 - 使用 HTTPS
 - 使用 CAM 子账号
 - `.env` 权限 600
+- 不在 `.env` 或 Docker `environment` 中放 OCR 运营商密钥
+- 保护 `OCR_CONFIG_ENCRYPTION_KEY`，并随数据库备份一起做加密备份
 - 容器非 root 运行
 - 不暴露 PostgreSQL 和 Redis 到公网
 - 不记录 Secret 和完整 Base64
@@ -424,4 +432,3 @@ docker compose exec worker curl -I https://ocr.tencentcloudapi.com
 - 启用审计日志
 - 定期备份和恢复演练
 - 镜像漏洞扫描无高危未解释项
-

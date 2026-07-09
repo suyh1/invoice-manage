@@ -1,8 +1,8 @@
-# 发票集中存储与腾讯云 OCR 识别系统
+# 发票集中存储与多运营商 OCR 识别系统
 
 本仓库当前处于初始设计阶段。项目目标是在 `linux x86_64` 架构上交付可私有化部署的 Docker 镜像，用于集中存储、管理、识别出差、采购、餐饮、交通、住宿等场景的发票。
 
-识别能力对接腾讯云 OCR `VatInvoiceOCR`。部署用户只需要填写腾讯云 `SecretId` 和 `SecretKey`，系统内部固定封装腾讯云 OCR 的 endpoint、Action、Version、文件限制、异步队列、限流、错误映射和结果归一化。
+识别能力采用可扩展 OCR 运营商适配层。MVP 默认接入腾讯云 OCR `VatInvoiceOCR`，但管理员在系统设置页配置运营商、密钥、限流和免费额度提醒阈值；部署环境变量只保留数据库、Redis、应用密钥、存储路径等基础设施配置。后续可在同一适配层接入阿里云等 OCR 服务。
 
 ## 文档入口
 
@@ -19,7 +19,7 @@
 - 数据库：PostgreSQL
 - 异步任务与限流：Redis + Celery
 - 文件存储：Docker volume 本地文件存储，预留 S3/MinIO/COS 扩展接口
-- OCR：Tencent Cloud SDK 3.0，接口 `VatInvoiceOCR`
+- OCR：多运营商适配层，MVP 使用 Tencent Cloud SDK 3.0 和 `VatInvoiceOCR`
 - 交付：单业务镜像，多进程 compose 拓扑，目标平台 `linux/amd64`
 
 ## MVP 闭环
@@ -38,6 +38,7 @@
 - 图片像素宽高范围：20-10000px
 - PDF 需设置 `IsPdf=true`，一期仅支持单页识别
 - 识别结果必须保存 `VatInvoiceInfos`、`Items`、`PdfPageSize`、`Angle`、`RequestId`
+- OCR 凭据不得通过 `.env` 或 Docker `environment` 配置，必须由管理员在系统设置页录入、测试和轮换
+- 设置页必须展示 OCR 免费额度或资源包余量状态，并在接近用完前通知管理员和财务用户
 
 后续项目实现必须以 `docs/` 下文档为准。
-

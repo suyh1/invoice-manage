@@ -9,7 +9,11 @@
 ```mermaid
 erDiagram
   users ||--o{ invoice_documents : uploads
+  users ||--o{ ocr_provider_configs : configures
   invoice_documents ||--o{ ocr_jobs : has
+  ocr_provider_configs ||--o{ ocr_jobs : runs
+  ocr_provider_configs ||--o{ ocr_provider_usage_daily : tracks
+  ocr_provider_configs ||--o{ ocr_quota_alerts : triggers
   invoice_documents ||--o| invoices : produces
   invoices ||--o{ invoice_items : contains
   invoices ||--o{ invoice_corrections : corrected_by
@@ -46,6 +50,7 @@ erDiagram
   ocr_jobs {
     uuid id
     uuid document_id
+    uuid provider_config_id
     string provider
     string action
     string status
@@ -55,6 +60,47 @@ erDiagram
     jsonb raw_response
     timestamptz created_at
     timestamptz finished_at
+  }
+
+  ocr_provider_configs {
+    uuid id
+    string provider
+    string display_name
+    boolean enabled
+    boolean is_default
+    jsonb credential_ciphertext
+    string credential_fingerprint
+    string endpoint
+    string region
+    string action
+    string api_version
+    int qps_limit
+    string quota_source
+    int free_quota_total
+    int free_quota_used
+    int quota_warning_percent
+    timestamptz quota_reset_at
+  }
+
+  ocr_provider_usage_daily {
+    uuid id
+    uuid provider_config_id
+    date usage_date
+    string provider
+    string action
+    int successful_calls
+    int failed_calls
+    int estimated_billable_calls
+  }
+
+  ocr_quota_alerts {
+    uuid id
+    uuid provider_config_id
+    string level
+    string status
+    string message
+    timestamptz triggered_at
+    uuid acknowledged_by
   }
 
   invoices {
@@ -144,27 +190,106 @@ erDiagram
 | `id` | UUID | 主键 |
 | `document_id` | UUID | 文件 |
 | `invoice_id` | UUID | 发票，可空，归一化后关联 |
-| `provider` | String | 固定 `tencent` |
-| `endpoint` | String | 固定 `ocr.tencentcloudapi.com` |
-| `action` | String | 固定 `VatInvoiceOCR` |
-| `version` | String | 固定 `2018-11-19` |
-| `region` | String | 默认 `ap-guangzhou` |
+| `provider_config_id` | UUID | 使用的 OCR 运营商配置 |
+| `provider` | String | `tencent`、后续 `aliyun`、`mock` |
+| `endpoint` | String | 本次调用使用的 endpoint 快照 |
+| `action` | String | 本次调用使用的接口动作快照，如 `VatInvoiceOCR` |
+| `version` | String | 本次调用使用的 API 版本快照 |
+| `region` | String | 本次调用使用的地域快照 |
 | `status` | Enum | 作业状态 |
 | `attempt_count` | Integer | 尝试次数 |
 | `next_retry_at` | Timestamp | 下次重试 |
 | `idempotency_key` | String | 幂等键 |
-| `request_id` | String | 腾讯云 `RequestId` |
+| `request_id` | String | 运营商请求 ID，如腾讯云 `RequestId` |
 | `error_code` | String | 系统错误码 |
-| `provider_error_code` | String | 腾讯云错误码 |
+| `provider_error_code` | String | 运营商错误码 |
 | `error_message` | String | 脱敏错误信息 |
 | `raw_request_meta` | JSONB | 请求元信息，不含 Secret/Base64 |
-| `raw_response` | JSONB | 腾讯云原始响应 |
+| `raw_response` | JSONB | 运营商原始响应 |
 | `started_at` | Timestamp | 开始 |
 | `finished_at` | Timestamp | 结束 |
 
 唯一约束：
 
 - `idempotency_key` 在非强制重跑场景唯一
+
+### 2.3.1 `ocr_provider_configs`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | UUID | 主键 |
+| `provider` | Enum/String | `tencent`、预留 `aliyun`、`mock` |
+| `display_name` | String | 页面显示名 |
+| `enabled` | Boolean | 是否启用 |
+| `is_default` | Boolean | 是否默认 OCR 运营商，MVP 同时只能有一个 |
+| `credential_ciphertext` | JSONB | 加密后的凭据包，如腾讯云 SecretId/SecretKey |
+| `credential_fingerprint` | String | 凭据摘要，用于显示和审计，如 `sha256:9f3a...`，不得包含原始 SecretId/SecretKey 片段 |
+| `endpoint` | String | 非敏感 endpoint，腾讯云默认 `ocr.tencentcloudapi.com` |
+| `region` | String | 地域，腾讯云默认 `ap-guangzhou` |
+| `action` | String | 接口动作，腾讯云默认 `VatInvoiceOCR` |
+| `api_version` | String | API 版本，腾讯云默认 `2018-11-19` |
+| `qps_limit` | Integer | 内部限流值，腾讯云默认 8，不得超过官方限制 |
+| `timeout_seconds` | Integer | 调用超时 |
+| `quota_source` | Enum | `manual`、`provider_api`、`estimated` |
+| `free_quota_total` | Integer | 当前周期免费额度或资源包总量，可空 |
+| `free_quota_used` | Integer | 当前周期已用量，可来自同步或估算 |
+| `quota_reset_at` | Timestamp | 免费额度周期重置时间，可空 |
+| `quota_warning_percent` | Integer | 百分比提醒阈值，如 80 |
+| `quota_warning_remaining` | Integer | 剩余次数提醒阈值，如 100 |
+| `last_test_status` | String | 最近连接测试结果 |
+| `last_tested_at` | Timestamp | 最近连接测试时间 |
+| `created_by` | UUID | 创建管理员 |
+| `updated_by` | UUID | 最近修改管理员 |
+| `created_at` | Timestamp | 创建时间 |
+| `updated_at` | Timestamp | 更新时间 |
+
+约束：
+
+- `is_default=true` 的启用配置在 MVP 中最多一条。
+- `credential_ciphertext` 必须由应用级加密密钥加密，任何 API 响应不得返回明文。
+- 腾讯云 SecretId/SecretKey 不允许来自 `.env` 或 Docker `environment`。
+
+### 2.3.2 `ocr_provider_usage_daily`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | UUID | 主键 |
+| `provider_config_id` | UUID | OCR 运营商配置 |
+| `usage_date` | Date | 用量日期 |
+| `provider` | String | 运营商快照 |
+| `action` | String | 接口动作快照 |
+| `successful_calls` | Integer | 成功调用次数 |
+| `failed_calls` | Integer | 失败调用次数 |
+| `estimated_billable_calls` | Integer | 估算计费调用次数 |
+| `provider_reported_used` | Integer | 运营商同步的已用量，可空 |
+| `created_at` | Timestamp | 创建时间 |
+| `updated_at` | Timestamp | 更新时间 |
+
+唯一约束：
+
+- `(provider_config_id, usage_date, action)` 唯一
+
+### 2.3.3 `ocr_quota_alerts`
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | UUID | 主键 |
+| `provider_config_id` | UUID | OCR 运营商配置 |
+| `level` | Enum | `info`、`warning`、`critical` |
+| `status` | Enum | `active`、`acknowledged`、`resolved` |
+| `message` | String | 页面提示文案 |
+| `quota_total` | Integer | 触发时总额度快照 |
+| `quota_used` | Integer | 触发时已用量快照 |
+| `quota_remaining` | Integer | 触发时剩余额度快照 |
+| `triggered_at` | Timestamp | 触发时间 |
+| `acknowledged_by` | UUID | 确认人，可空 |
+| `acknowledged_at` | Timestamp | 确认时间，可空 |
+| `resolved_at` | Timestamp | 恢复时间，可空 |
+
+页面要求：
+
+- 总览页、设置页和上传识别页必须展示 `active` 的 warning/critical 提醒。
+- 阈值触发时不得阻断上传，但应明确提示免费额度即将用完或已用完。
 
 ### 2.4 `invoices`
 
@@ -440,8 +565,16 @@ XLSX 导出包含：
 ### 3.9 管理与设置
 
 ```http
-GET  /api/v1/admin/ocr-provider/status
-POST /api/v1/admin/ocr-provider/test
+GET    /api/v1/admin/ocr-providers
+POST   /api/v1/admin/ocr-providers
+GET    /api/v1/admin/ocr-providers/{provider_config_id}
+PATCH  /api/v1/admin/ocr-providers/{provider_config_id}
+POST   /api/v1/admin/ocr-providers/{provider_config_id}/test
+POST   /api/v1/admin/ocr-providers/{provider_config_id}/set-default
+POST   /api/v1/admin/ocr-providers/{provider_config_id}/rotate-credential
+POST   /api/v1/admin/ocr-providers/{provider_config_id}/quota-calibration
+GET    /api/v1/admin/ocr-quota-alerts
+POST   /api/v1/admin/ocr-quota-alerts/{alert_id}/acknowledge
 GET  /api/v1/admin/system/health
 GET  /api/v1/admin/audit-logs
 GET  /api/v1/admin/users
@@ -449,19 +582,84 @@ POST /api/v1/admin/users
 PATCH /api/v1/admin/users/{user_id}
 ```
 
-`ocr-provider/status` 只能返回：
+创建或更新腾讯云 OCR 配置示例：
 
 ```json
 {
-  "configured": true,
+  "provider": "tencent",
+  "display_name": "腾讯云 OCR",
+  "enabled": true,
+  "is_default": true,
+  "credential": {
+    "secret_id": "AKID...",
+    "secret_key": "..."
+  },
+  "region": "ap-guangzhou",
   "endpoint": "ocr.tencentcloudapi.com",
   "action": "VatInvoiceOCR",
-  "version": "2018-11-19",
-  "qps": 8
+  "api_version": "2018-11-19",
+  "qps_limit": 8,
+  "quota": {
+    "source": "manual",
+    "free_quota_total": 1000,
+    "free_quota_used": 120,
+    "quota_warning_percent": 80,
+    "quota_warning_remaining": 100,
+    "quota_reset_at": "2026-08-01T00:00:00+08:00"
+  }
 }
 ```
 
-不得返回 SecretKey。
+`ocr-providers` 响应只能返回脱敏状态：
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "provider": "tencent",
+      "display_name": "腾讯云 OCR",
+      "enabled": true,
+      "is_default": true,
+      "configured": true,
+      "credential_fingerprint": "sha256:9f3a...",
+      "endpoint": "ocr.tencentcloudapi.com",
+      "region": "ap-guangzhou",
+      "action": "VatInvoiceOCR",
+      "api_version": "2018-11-19",
+      "qps_limit": 8,
+      "last_test_status": "success",
+      "last_tested_at": "2026-07-09T10:00:00+08:00",
+      "quota": {
+        "source": "manual",
+        "free_quota_total": 1000,
+        "free_quota_used": 120,
+        "free_quota_remaining": 880,
+        "used_percent": 12,
+        "warning_percent": 80,
+        "warning_remaining": 100,
+        "reset_at": "2026-08-01T00:00:00+08:00",
+        "alert_level": "none"
+      }
+    }
+  ]
+}
+```
+
+不得返回 SecretId、SecretKey、完整 credential 或 credential 密文。
+
+额度校准用于运营商无法自动同步剩余额度时，由管理员按控制台数据手动修正：
+
+```json
+{
+  "free_quota_total": 1000,
+  "free_quota_used": 780,
+  "quota_reset_at": "2026-08-01T00:00:00+08:00",
+  "note": "按腾讯云控制台资源包余量校准"
+}
+```
+
+`ocr-quota-alerts` 返回当前 active 提醒。管理员和财务用户可查看，只有管理员可确认或修改阈值。
 
 ## 4. 错误码映射
 
@@ -472,17 +670,19 @@ PATCH /api/v1/admin/users/{user_id}
 | `OCR_FILE_TOO_LARGE` | 400 | 否 | Base64 后超过 10MB |
 | `OCR_INVALID_IMAGE_SIZE` | 400 | 否 | 像素不在 20-10000px |
 | `OCR_PDF_MULTI_PAGE_NOT_SUPPORTED` | 400 | 否 | 多页 PDF |
-| `OCR_PROVIDER_AUTH_FAILED` | 502 | 否 | SecretId/SecretKey 错误 |
-| `OCR_PROVIDER_RATE_LIMITED` | 503 | 是 | 腾讯云限流 |
+| `OCR_PROVIDER_CONFIG_MISSING` | 400 | 否 | 未配置可用 OCR 运营商 |
+| `OCR_PROVIDER_AUTH_FAILED` | 502 | 否 | OCR 运营商凭据错误 |
+| `OCR_PROVIDER_RATE_LIMITED` | 503 | 是 | OCR 运营商限流 |
 | `OCR_PROVIDER_TIMEOUT` | 503 | 是 | 网络或服务超时 |
-| `OCR_PROVIDER_UNOPENED` | 502 | 否 | 腾讯云服务未开通 |
-| `OCR_PROVIDER_IN_ARREARS` | 502 | 否 | 欠费 |
+| `OCR_PROVIDER_UNOPENED` | 502 | 否 | OCR 运营商服务未开通 |
+| `OCR_PROVIDER_IN_ARREARS` | 502 | 否 | 账号欠费或计费状态异常 |
+| `OCR_PROVIDER_QUOTA_EXHAUSTED` | 502 | 否 | 免费额度、资源包或调用额度耗尽 |
 | `OCR_RECOGNITION_EMPTY` | 422 | 否 | 未检测到文本 |
 | `OCR_PROVIDER_UNKNOWN_ERROR` | 502 | 是 | 未知临时错误 |
 
 ## 5. 字段映射
 
-`VatInvoiceInfos` 是键值数组。实现中建立 `TencentVatInvoiceMapper`，按中文字段名映射至标准字段。
+腾讯云 `VatInvoiceInfos` 是键值数组。MVP 实现中建立 `TencentVatInvoiceMapper`，按中文字段名映射至标准字段。后续接入阿里云等运营商时，新增对应 mapper，并输出同一套标准字段。
 
 | 腾讯云字段名 | 标准字段 |
 |---|---|
@@ -511,7 +711,7 @@ PATCH /api/v1/admin/users/{user_id}
 
 OCR 幂等：
 
-- `document_id + action + pdf_page_number + sha256`
+- `provider_config_id + action + pdf_page_number + sha256`
 - 已有 `queued/running/completed` 时返回已有 job
 - 强制重跑创建新 job version
 
@@ -519,6 +719,5 @@ OCR 幂等：
 
 - 最大 3 次
 - 退避：10s、30s、2min
-- 只重试限流、网络超时、腾讯云 5xx 或未知临时错误
+- 只重试限流、网络超时、运营商 5xx 或未知临时错误
 - 不重试文件格式、大小、像素、鉴权、欠费、服务未开通
-
