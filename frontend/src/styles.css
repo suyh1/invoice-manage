@@ -3091,6 +3091,7 @@ label {
     display: grid;
     height: 100dvh;
     min-height: 720px;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto auto auto;
     overflow: hidden;
   }

@@ -43,6 +43,7 @@ describe("responsive workspace layout", () => {
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
     expect(desktopAuthPageRule).toContain("height: 100dvh;");
     expect(desktopAuthPageRule).toContain("overflow: hidden;");
+    expect(desktopAuthPageRule).toContain("grid-template-columns: minmax(0, 1fr);");
     expect(desktopAuthPageRule).toContain("grid-template-rows: minmax(0, 1fr) auto auto auto;");
     expect(mobileAuthRules).toMatch(/\.motion-auth-hero\s*\{[^}]*min-height:\s*780px;/);
     expect(styles).not.toContain(".motion-auth-menu");
