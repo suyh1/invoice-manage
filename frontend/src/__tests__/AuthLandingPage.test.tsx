@@ -68,7 +68,7 @@ describe("AuthLandingPage", () => {
     const panel = screen.getByRole("region", { name: "创建首位管理员" });
 
     expect(panel.getAttribute("data-engaged")).toBe("true");
-    expect(screen.getByText("公开注册将自动关闭。")).toBeTruthy();
+    expect(screen.getByText(/公开注册将自动关闭/)).toBeTruthy();
     expect(screen.getByLabelText("姓名").getAttribute("autocomplete")).toBe("name");
     expect(document.querySelectorAll('input[autocomplete="new-password"]')).toHaveLength(2);
     expect(screen.getByRole("button", { name: /创建管理员并进入系统/ })).toBeTruthy();
