@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.admin_ocr import router as admin_ocr_router
+from app.api.routes.admin_users import router as admin_users_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.documents import router as documents_router
 from app.api.routes.exports import router as exports_router
@@ -22,6 +23,7 @@ def create_app() -> FastAPI:
     application.add_exception_handler(AppError, app_error_handler)
     application.include_router(health_router)
     application.include_router(admin_ocr_router)
+    application.include_router(admin_users_router)
     application.include_router(auth_router)
     application.include_router(documents_router)
     application.include_router(ocr_jobs_router)
