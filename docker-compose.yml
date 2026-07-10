@@ -1,12 +1,30 @@
 name: invoice-ocr
 
+x-app-environment: &app-environment
+  APP_ENV: ${APP_ENV:-production}
+  APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+  APP_PORT: ${APP_PORT:-8080}
+  TZ: ${TZ:-Asia/Shanghai}
+  APP_SECRET_KEY: ${APP_SECRET_KEY:?APP_SECRET_KEY is required}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+  SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-Lax}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+  POSTGRES_DB: ${POSTGRES_DB:-invoice_app}
+  POSTGRES_USER: ${POSTGRES_USER:-invoice_app}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+  STORAGE_PATH: ${STORAGE_PATH:-/data/uploads}
+  EXPORT_PATH: ${EXPORT_PATH:-/data/exports}
+  TMP_PATH: ${TMP_PATH:-/data/tmp}
+  OCR_CONFIG_ENCRYPTION_KEY: ${OCR_CONFIG_ENCRYPTION_KEY:?OCR_CONFIG_ENCRYPTION_KEY is required}
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+
 services:
   app:
     image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     command: ["web"]
-    env_file:
-      - path: .env
-        required: false
+    environment: *app-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,9 +51,7 @@ services:
   worker:
     image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     command: ["worker"]
-    env_file:
-      - path: .env
-        required: false
+    environment: *app-environment
     depends_on:
       app:
         condition: service_healthy
