@@ -3181,7 +3181,7 @@ label {
   }
 }
 
-@media (min-width: 811px) and (max-height: 719px) {
+@media (min-width: 811px) and (max-height: 899px) {
   .motion-auth-page:not(.is-bootstrap) {
     height: 100dvh;
     min-height: 0;
