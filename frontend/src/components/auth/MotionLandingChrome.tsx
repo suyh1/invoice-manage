@@ -1,56 +1,19 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-  type RefObject,
-} from "react";
-import {
-  ChevronUp,
-  CircleCheckBig,
-  FileOutput,
-  FolderTree,
-  ScanLine,
-  Upload,
-  X,
-} from "lucide-react";
+import { type CSSProperties, type ReactNode } from "react";
+import { CircleCheckBig, FileOutput, FolderTree, ScanLine, Upload } from "lucide-react";
 
 import { heroCapabilities, workflowCapabilities, workflowSteps } from "../../lib/authLanding";
 
 type MotionLandingChromeProps = {
   bootstrap?: boolean;
   children: ReactNode;
-  onLoginRequest?: () => void;
 };
 
 const workflowIcons = [Upload, ScanLine, CircleCheckBig, FolderTree, FileOutput] as const;
 
-const drawerLinks = [
-  { href: "#auth-panel", label: "登录系统", target: "login" },
-  { href: "#workflow", label: "原件归档与 OCR" },
-  { href: "#workflow", label: "人工校对" },
-  { href: "#workflow", label: "项目与权限" },
-  { href: "#private-deployment", label: "私有部署" },
-] as const;
-
-export function MotionLandingChrome({ bootstrap = false, children, onLoginRequest }: MotionLandingChromeProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-
+export function MotionLandingChrome({ bootstrap = false, children }: MotionLandingChromeProps) {
   return (
     <main className={`motion-auth-page${bootstrap ? " is-bootstrap" : ""}`}>
-      <MotionNavbar
-        buttonRef={menuButtonRef}
-        menuOpen={menuOpen}
-        onMenuToggle={() => setMenuOpen((open) => !open)}
-      />
-      <FullscreenMenu
-        open={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        onLoginRequest={onLoginRequest}
-        triggerRef={menuButtonRef}
-      />
+      <MotionNavbar />
 
       <section className="motion-auth-hero" aria-labelledby="auth-product-title">
         <div className="motion-auth-background" aria-hidden="true" />
@@ -79,153 +42,14 @@ export function MotionLandingChrome({ bootstrap = false, children, onLoginReques
   );
 }
 
-function MotionNavbar({
-  buttonRef,
-  menuOpen,
-  onMenuToggle,
-}: {
-  buttonRef: RefObject<HTMLButtonElement | null>;
-  menuOpen: boolean;
-  onMenuToggle: () => void;
-}) {
+function MotionNavbar() {
   return (
     <header className="motion-auth-navbar">
       <a className="motion-auth-brand" href="#top" aria-label="Invoice OCR 发票识别与归档">
         <span>Invoice OCR</span>
         <small>发票识别与归档</small>
       </a>
-      <button
-        aria-expanded={menuOpen}
-        aria-haspopup="dialog"
-        aria-label="Menu"
-        className="motion-auth-menu-button"
-        onClick={onMenuToggle}
-        ref={buttonRef}
-        type="button"
-      >
-        <span>Menu</span>
-        <ChevronUp aria-hidden="true" size={16} />
-      </button>
     </header>
-  );
-}
-
-function FullscreenMenu({
-  open,
-  onClose,
-  onLoginRequest,
-  triggerRef,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onLoginRequest?: () => void;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-}) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return undefined;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const focusableElements = () =>
-      Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
-
-    focusableElements()[0]?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        triggerRef.current?.focus();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const focusable = focusableElements();
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (!first || !last) {
-        event.preventDefault();
-        return;
-      }
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose, open, triggerRef]);
-
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <div
-      aria-label="首页导航"
-      aria-modal="true"
-      className="motion-auth-menu"
-      ref={dialogRef}
-      role="dialog"
-    >
-      <nav aria-label="落地页导航">
-        {drawerLinks.map((link) => (
-          <a
-            href={link.href}
-            key={link.label}
-            onClick={(event) => {
-              if ("target" in link && link.target === "login") {
-                event.preventDefault();
-                triggerRef.current?.focus();
-                onClose();
-                onLoginRequest?.();
-                return;
-              }
-              triggerRef.current?.focus();
-              onClose();
-            }}
-          >
-            {link.label}
-          </a>
-        ))}
-      </nav>
-      <footer>
-        <span>Invoice OCR</span>
-        <span>发票识别、校对与项目归档</span>
-      </footer>
-      <button
-        aria-label="关闭菜单"
-        className="motion-auth-menu-close"
-        onClick={() => {
-          triggerRef.current?.focus();
-          onClose();
-        }}
-        title="关闭菜单"
-        type="button"
-      >
-        <X aria-hidden="true" size={18} />
-      </button>
-    </div>
   );
 }
 
@@ -291,7 +115,6 @@ function TextMarquee({ className, items }: { className?: string; items: readonly
 function CapabilityBand() {
   return (
     <section className="motion-auth-capability-band" aria-label="系统能力">
-      <p>围绕企业财务流程构建</p>
       <TextMarquee className="motion-auth-capability-marquee" items={workflowCapabilities} />
     </section>
   );

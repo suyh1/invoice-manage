@@ -66,7 +66,7 @@ export function AuthLandingPage({
   const passwordToggleLabel = showPassword ? "隐藏密码" : "显示密码";
 
   return (
-    <MotionLandingChrome bootstrap={isBootstrap} onLoginRequest={() => firstInputRef.current?.focus()}>
+    <MotionLandingChrome bootstrap={isBootstrap}>
       <section
         aria-busy={busy}
         aria-labelledby="auth-panel-title"
