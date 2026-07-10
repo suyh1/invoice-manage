@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { FieldEditor, type EditableField } from "../components/FieldEditor";
 import { InvoicePreview, type InvoiceDocumentMeta } from "../components/InvoicePreview";
 import { LineItemsEditor, type InvoiceLineItem } from "../components/LineItemsEditor";
+import { ProjectFilter } from "../components/ProjectFilter";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut } from "../lib/api";
+import type { ProjectSummary } from "../lib/projects";
 
 type InvoiceDetail = {
   amount_with_tax: string | null;
@@ -29,6 +31,12 @@ type InvoiceDetail = {
   invoice_number: string | null;
   invoice_type: string | null;
   is_duplicate_suspected: boolean;
+  project: {
+    id: string;
+    name: string;
+    visibility: string;
+    status: string;
+  } | null;
   items: InvoiceLineItem[];
   normalized_payload: {
     invoice_fields?: Record<string, string | null>;
@@ -71,12 +79,27 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
   const [detail, setDetail] = useState<InvoiceDetail | null>(null);
   const [draft, setDraft] = useState<DraftFields | null>(null);
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"loading" | "ready" | "saving" | "error">("loading");
 
   useEffect(() => {
     loadInvoice();
   }, [invoiceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<ProjectSummary[]>("/api/v1/projects")
+      .then((data) => {
+        if (!cancelled) setProjects(data);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const editableFields = useMemo(() => {
     if (!detail || !draft) {
@@ -131,12 +154,33 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
     }
     setStatus("saving");
     try {
-      await apiPut(`/api/v1/invoices/${detail.id}/items`, { items: lineItems });
+      const updated = await apiPut<InvoiceDetail>(`/api/v1/invoices/${detail.id}/items`, { items: lineItems });
+      setDetail(updated);
+      setDraft(toDraft(updated));
+      setLineItems(updated.items);
       setMessage("明细已提交保存。");
       setStatus("ready");
     } catch (error) {
       setStatus("error");
       setMessage(apiErrorMessage(error, "明细保存失败。"));
+    }
+  }
+
+  async function moveProject(projectId: string) {
+    if (!detail || !projectId || projectId === detail.project?.id) {
+      return;
+    }
+    setStatus("saving");
+    try {
+      const updated = await apiPatch<InvoiceDetail>(`/api/v1/invoices/${detail.id}`, { project_id: projectId });
+      setDetail(updated);
+      setDraft(toDraft(updated));
+      setLineItems(updated.items);
+      setMessage("已更新归属项目。");
+      setStatus("ready");
+    } catch (error) {
+      setStatus("error");
+      setMessage(apiErrorMessage(error, "项目移动失败。"));
     }
   }
 
@@ -226,6 +270,21 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
       <section className="invoice-detail-layout">
         <InvoicePreview document={detail.document} />
         <div className="detail-editor-stack">
+          <section className="surface-panel project-assignment-panel">
+            <div>
+              <span className="section-label">项目归档</span>
+              <h2>{detail.project?.name || "未分类"}</h2>
+              <p>调整后会保留项目移动的修正记录。</p>
+            </div>
+            <ProjectFilter
+              disabled={status === "saving" || projects.length === 0}
+              includeAll={false}
+              label="归属项目"
+              onChange={moveProject}
+              projects={projects}
+              value={detail.project?.id ?? ""}
+            />
+          </section>
           <section className="surface-panel">
             <div className="panel-heading">
               <div>

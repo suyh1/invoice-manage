@@ -1,3 +1,5 @@
+import { invoiceStatusLabel } from "../lib/invoiceStatus";
+
 export type InvoiceSummary = {
   amount_with_tax: string | null;
   buyer_name: string | null;
@@ -14,17 +16,14 @@ export type InvoiceSummary = {
   invoice_date: string | null;
   invoice_number: string | null;
   is_duplicate_suspected: boolean;
+  project: {
+    id: string;
+    name: string;
+    visibility: string;
+    status: string;
+  } | null;
   seller_name: string | null;
   status: string;
-};
-
-const statusLabel: Record<string, string> = {
-  archived: "已归档",
-  confirmed: "已确认",
-  deleted: "已删除",
-  draft: "待校对",
-  duplicate_suspected: "疑似重复",
-  ocr_done: "待校对",
 };
 
 export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
@@ -43,6 +42,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
         <thead>
           <tr>
             <th>发票号码</th>
+            <th>项目</th>
             <th>销售方</th>
             <th>购买方</th>
             <th>日期</th>
@@ -59,6 +59,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
                 <strong>{invoice.invoice_number || "-"}</strong>
                 <span>{invoice.invoice_code || "无代码"}</span>
               </td>
+              <td>{invoice.project?.name || "未分类"}</td>
               <td>{invoice.seller_name || "-"}</td>
               <td>{invoice.buyer_name || "-"}</td>
               <td>{invoice.invoice_date || "-"}</td>
@@ -67,7 +68,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
               </td>
               <td>
                 <span className={`status-token ${invoice.is_duplicate_suspected ? "danger" : invoice.status === "confirmed" ? "success" : "neutral"}`}>
-                  {invoice.is_duplicate_suspected ? "疑似重复" : statusLabel[invoice.status] ?? invoice.status}
+                  {invoice.is_duplicate_suspected ? "疑似重复" : invoiceStatusLabel(invoice.status)}
                 </span>
               </td>
               <td>

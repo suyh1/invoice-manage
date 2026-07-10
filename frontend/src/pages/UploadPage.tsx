@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { OcrQuotaStatus } from "../components/OcrQuotaStatus";
+import { ProjectFilter } from "../components/ProjectFilter";
 import { UploadDropzone } from "../components/UploadDropzone";
 import { UploadQueue, type UploadQueueItem } from "../components/UploadQueue";
 import { ApiError, apiGet, apiPost, apiPostForm } from "../lib/api";
 import { validateUploadCandidate } from "../lib/fileValidation";
+import type { ProjectSummary } from "../lib/projects";
 
 type DocumentUploadResponse = {
   document_id: string;
@@ -23,10 +25,28 @@ type OcrJobResponse = {
 export function UploadPage() {
   const [items, setItems] = useState<UploadQueueItem[]>([]);
   const [scene, setScene] = useState("");
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectId, setProjectId] = useState("");
   const [autoOcr, setAutoOcr] = useState(true);
 
   const readyCount = useMemo(() => items.filter((item) => item.status === "ready").length, [items]);
   const busy = items.some((item) => item.status === "uploading" || item.status === "recognizing" || item.status === "ocr_queued");
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<ProjectSummary[]>("/api/v1/projects")
+      .then((data) => {
+        if (cancelled) return;
+        setProjects(data);
+        setProjectId((current) => current || data.find((project) => project.system_key === "uncategorized")?.id || "");
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function addFiles(files: File[]) {
     const pendingItems: UploadQueueItem[] = files.map((file) => ({
@@ -106,6 +126,9 @@ export function UploadPage() {
     if (scene.trim()) {
       body.append("scene", scene.trim());
     }
+    if (projectId) {
+      body.append("project_id", projectId);
+    }
 
     try {
       const uploaded = await apiPostForm<DocumentUploadResponse>("/api/v1/documents", body);
@@ -181,6 +204,14 @@ export function UploadPage() {
             <span className="section-label">批次设置</span>
             <h2>上传前确认</h2>
           </div>
+          <ProjectFilter
+            disabled={busy || projects.length === 0}
+            includeAll={false}
+            label="归属项目"
+            onChange={setProjectId}
+            projects={projects}
+            value={projectId}
+          />
           <label>
             业务场景
             <select value={scene} onChange={(event) => setScene(event.currentTarget.value)}>

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { InvoiceTable, type InvoiceSummary } from "../components/InvoiceTable";
+import { ProjectFilter } from "../components/ProjectFilter";
 import { ApiError, apiGet } from "../lib/api";
+import type { ProjectSummary } from "../lib/projects";
 
 type InvoiceListResponse = {
   items: InvoiceSummary[];
@@ -12,6 +14,7 @@ type InvoiceFilters = {
   duplicate: string;
   file_type: string;
   q: string;
+  project_id: string;
   scene: string;
   status: string;
 };
@@ -20,13 +23,14 @@ const emptyFilters: InvoiceFilters = {
   duplicate: "",
   file_type: "",
   q: "",
+  project_id: "",
   scene: "",
   status: "",
 };
 
 const savedViews: Array<{ filters: Partial<InvoiceFilters>; label: string }> = [
   { filters: {}, label: "全部" },
-  { filters: { status: "draft" }, label: "待校对" },
+  { filters: { status: "needs_review" }, label: "待校对" },
   { filters: { duplicate: "true" }, label: "疑似重复" },
   { filters: { status: "confirmed" }, label: "已确认" },
   { filters: { file_type: "pdf" }, label: "PDF" },
@@ -35,6 +39,7 @@ const savedViews: Array<{ filters: Partial<InvoiceFilters>; label: string }> = [
 export function InvoiceListPage() {
   const [filters, setFilters] = useState<InvoiceFilters>(emptyFilters);
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -62,6 +67,20 @@ export function InvoiceListPage() {
     };
   }, [query]);
 
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<ProjectSummary[]>("/api/v1/projects")
+      .then((data) => {
+        if (!cancelled) setProjects(data);
+      })
+      .catch(() => {
+        if (!cancelled) setProjects([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function applySavedView(viewFilters: Partial<InvoiceFilters>) {
     setFilters({ ...emptyFilters, ...viewFilters });
   }
@@ -84,6 +103,12 @@ export function InvoiceListPage() {
       </section>
 
       <section className="surface-panel invoice-filters" aria-label="发票筛选">
+        <ProjectFilter
+          label="项目"
+          onChange={(projectId) => setFilters({ ...filters, project_id: projectId })}
+          projects={projects}
+          value={filters.project_id}
+        />
         <label>
           搜索
           <input

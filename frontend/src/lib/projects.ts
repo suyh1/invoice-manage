@@ -22,6 +22,8 @@ export type ProjectGroups = {
   archived: ProjectSummary[];
 };
 
+export type AssignableProjectGroups = Pick<ProjectGroups, "system" | "shared" | "private">;
+
 const projectNameCollator = new Intl.Collator("zh-CN-u-co-stroke");
 
 export function groupProjects(projects: ProjectSummary[]): ProjectGroups {
@@ -38,4 +40,9 @@ export function groupProjects(projects: ProjectSummary[]): ProjectGroups {
     group.sort((left, right) => projectNameCollator.compare(left.name, right.name));
   }
   return groups;
+}
+
+export function groupAssignableProjectOptions(projects: ProjectSummary[]): AssignableProjectGroups {
+  const grouped = groupProjects(projects);
+  return { system: grouped.system, shared: grouped.shared, private: grouped.private };
 }

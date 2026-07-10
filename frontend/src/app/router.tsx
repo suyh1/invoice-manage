@@ -6,6 +6,7 @@ import { DashboardPage } from "../pages/DashboardPage";
 import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
 import { InvoiceListPage } from "../pages/InvoiceListPage";
 import { ProjectManagementPage } from "../pages/ProjectManagementPage";
+import { ReviewQueuePage } from "../pages/ReviewQueuePage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { UploadPage } from "../pages/UploadPage";
 import { UserManagementPage } from "../pages/UserManagementPage";
@@ -34,7 +35,7 @@ export const appRoutes: AppRoute[] = [
   { id: "dashboard", label: "总览", path: "#/" },
   { id: "invoices", label: "发票库", path: "#/invoices" },
   { id: "upload", label: "上传识别", path: "#/upload" },
-  { id: "review", label: "待校对", path: "#/review", badge: "0" },
+  { id: "review", label: "待校对", path: "#/review" },
   { id: "exports", label: "导出记录", path: "#/exports" },
   { id: "projects", label: "项目", path: "#/projects" },
   { id: "users", label: "用户管理", path: "#/users" },
@@ -76,6 +77,9 @@ export function renderRoute(route: AppRoute) {
   }
   if (route.id === "upload") {
     return <UploadPage />;
+  }
+  if (route.id === "review") {
+    return <ReviewQueuePage />;
   }
   if (route.id === "projects") {
     return <ProjectManagementPage />;
