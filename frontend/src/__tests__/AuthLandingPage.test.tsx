@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -49,6 +49,51 @@ describe("AuthLandingPage", () => {
     expect(screen.getByRole("dialog", { name: "首页导航" })).toBeTruthy();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog", { name: "首页导航" })).toBeNull();
+  });
+
+  it("traps focus in the menu and returns it to the trigger on close", async () => {
+    const user = userEvent.setup();
+    render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+
+    await user.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "首页导航" });
+    const links = within(dialog).getAllByRole("link");
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(links[0]);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(links.at(-1));
+    await user.tab();
+    expect(document.activeElement).toBe(links[0]);
+
+    await user.keyboard("{Escape}");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("closes the menu and focuses the first authentication field", async () => {
+    const user = userEvent.setup();
+    render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
+
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    await user.click(screen.getByRole("link", { name: "登录系统" }));
+
+    expect(screen.queryByRole("dialog", { name: "首页导航" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByLabelText("邮箱"));
+  });
+
+  it("locks background scrolling while the menu is open and restores it on unmount", async () => {
+    const user = userEvent.setup();
+    document.body.style.overflow = "auto";
+    const { unmount } = render(
+      <AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Menu" }));
+    expect(document.body.style.overflow).toBe("hidden");
+    unmount();
+    expect(document.body.style.overflow).toBe("auto");
   });
 
   it("keeps the existing login field and unsupported-action contract", () => {

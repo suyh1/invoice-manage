@@ -1,4 +1,11 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import {
   ChevronUp,
   CircleCheckBig,
@@ -28,14 +35,20 @@ const drawerLinks = [
 
 export function MotionLandingChrome({ bootstrap = false, children, onLoginRequest }: MotionLandingChromeProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
     <main className={`motion-auth-page${bootstrap ? " is-bootstrap" : ""}`}>
-      <MotionNavbar menuOpen={menuOpen} onMenuToggle={() => setMenuOpen((open) => !open)} />
+      <MotionNavbar
+        buttonRef={menuButtonRef}
+        menuOpen={menuOpen}
+        onMenuToggle={() => setMenuOpen((open) => !open)}
+      />
       <FullscreenMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         onLoginRequest={onLoginRequest}
+        triggerRef={menuButtonRef}
       />
 
       <section className="motion-auth-hero" aria-labelledby="auth-product-title">
@@ -65,7 +78,15 @@ export function MotionLandingChrome({ bootstrap = false, children, onLoginReques
   );
 }
 
-function MotionNavbar({ menuOpen, onMenuToggle }: { menuOpen: boolean; onMenuToggle: () => void }) {
+function MotionNavbar({
+  buttonRef,
+  menuOpen,
+  onMenuToggle,
+}: {
+  buttonRef: RefObject<HTMLButtonElement | null>;
+  menuOpen: boolean;
+  onMenuToggle: () => void;
+}) {
   return (
     <header className="motion-auth-navbar">
       <a className="motion-auth-brand" href="#top" aria-label="Invoice OCR 发票识别与归档">
@@ -78,6 +99,7 @@ function MotionNavbar({ menuOpen, onMenuToggle }: { menuOpen: boolean; onMenuTog
         aria-label="Menu"
         className="motion-auth-menu-button"
         onClick={onMenuToggle}
+        ref={buttonRef}
         type="button"
       >
         <span>Menu</span>
@@ -91,32 +113,80 @@ function FullscreenMenu({
   open,
   onClose,
   onLoginRequest,
+  triggerRef,
 }: {
   open: boolean;
   onClose: () => void;
   onLoginRequest?: () => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) {
       return undefined;
     }
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusableElements = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      );
+
+    focusableElements()[0]?.focus();
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
+        triggerRef.current?.focus();
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusable = focusableElements();
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) {
+        event.preventDefault();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, open]);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose, open, triggerRef]);
 
   if (!open) {
     return null;
   }
 
   return (
-    <div aria-label="首页导航" aria-modal="true" className="motion-auth-menu" role="dialog">
+    <div
+      aria-label="首页导航"
+      aria-modal="true"
+      className="motion-auth-menu"
+      ref={dialogRef}
+      role="dialog"
+    >
       <nav aria-label="落地页导航">
         {drawerLinks.map((link) => (
           <a
@@ -125,10 +195,12 @@ function FullscreenMenu({
             onClick={(event) => {
               if ("target" in link && link.target === "login") {
                 event.preventDefault();
+                triggerRef.current?.focus();
                 onClose();
                 onLoginRequest?.();
                 return;
               }
+              triggerRef.current?.focus();
               onClose();
             }}
           >
