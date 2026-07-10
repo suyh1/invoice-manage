@@ -39,6 +39,7 @@ class ExportTask(Base):
         nullable=False,
     )
     storage_key: Mapped[str | None] = mapped_column(String(512))
+    error_message: Mapped[str | None] = mapped_column(String(1000))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

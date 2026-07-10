@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -18,6 +19,8 @@ from app.domain.export.service import run_export_task
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, QuotaSource
+from app.domain.project.models import Project
+from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
@@ -46,7 +49,14 @@ def make_client(session: Session, export_path) -> TestClient:
     return TestClient(app)
 
 
-def seed_invoice(session: Session, *, user, status: InvoiceStatus = InvoiceStatus.confirmed) -> Invoice:
+def seed_invoice(
+    session: Session,
+    *,
+    user,
+    status: InvoiceStatus = InvoiceStatus.confirmed,
+    project: Project | None = None,
+    invoice_number: str = "12876543",
+) -> Invoice:
     provider = OcrProviderConfig(
         provider="tencent",
         display_name="Tencent OCR",
@@ -55,14 +65,15 @@ def seed_invoice(session: Session, *, user, status: InvoiceStatus = InvoiceStatu
         quota_source=QuotaSource.manual,
     )
     document = InvoiceDocument(
+        project=project,
         uploaded_by=user.id,
-        original_filename="invoice.png",
+        original_filename=f"{invoice_number}.png",
         content_type="image/png",
         file_ext="png",
         file_size=100,
         base64_size=136,
-        sha256="a" * 64,
-        storage_key="2026/07/invoice.png",
+        sha256=(invoice_number + "a" * 64)[:64],
+        storage_key=f"2026/07/{invoice_number}.png",
         page_count=1,
         image_width=120,
         image_height=80,
@@ -78,8 +89,8 @@ def seed_invoice(session: Session, *, user, status: InvoiceStatus = InvoiceStatu
         region="ap-guangzhou",
         status=OcrJobStatus.completed,
         attempt_count=1,
-        idempotency_key="export-job",
-        request_id="req-export-001",
+        idempotency_key=f"export-job-{invoice_number}",
+        request_id="req-export-001" if invoice_number == "12876543" else f"req-export-{invoice_number}",
         raw_request_meta={"duration_ms": 321},
     )
     invoice = Invoice(
@@ -87,7 +98,7 @@ def seed_invoice(session: Session, *, user, status: InvoiceStatus = InvoiceStatu
         latest_ocr_job=job,
         invoice_type="增值税电子普通发票",
         invoice_code="144032216011",
-        invoice_number="12876543",
+        invoice_number=invoice_number,
         invoice_date=date(2026, 7, 9),
         seller_name="上海云栖酒店",
         buyer_name="星河科技有限公司",
@@ -217,3 +228,72 @@ def test_export_download_requires_owner_or_finance_and_not_expired(tmp_path) -> 
         expired = client.get(f"/api/v1/exports/{task.id}/download")
         assert expired.status_code == 410
         assert expired.json()["error"]["code"] == "EXPORT_EXPIRED"
+
+
+def test_export_filters_by_project_and_uploader_and_includes_project_metadata(tmp_path) -> None:
+    with make_session() as session:
+        owner = create_user(session, email="owner@example.com", password="password", display_name="Owner", role=UserRole.user)
+        other = create_user(session, email="other@example.com", password="password", display_name="Other", role=UserRole.user)
+        finance = create_user(
+            session, email="finance@example.com", password="password", display_name="Finance", role=UserRole.finance
+        )
+        project_service = ProjectService()
+        shared = project_service.create_project(session, finance, {"name": "共享差旅", "visibility": "shared"})
+        other_private = project_service.create_project(session, other, {"name": "他人私有", "visibility": "private"})
+        seed_invoice(session, user=owner, project=shared, invoice_number="10000001")
+        seed_invoice(session, user=other, project=other_private, invoice_number="10000002")
+        task = ExportTask(
+            format=ExportFormat.json,
+            filters={
+                "project_id": str(shared.id),
+                "uploaded_by": str(owner.id),
+                "include_items": True,
+                "include_ocr_meta": True,
+            },
+            status=ExportStatus.queued,
+            created_by=finance.id,
+        )
+        session.add(task)
+        session.commit()
+
+        run_export_task(task.id, db=session, export_root=tmp_path)
+        payload = json.loads((tmp_path / task.storage_key).read_text())
+        serialized = make_client(session, tmp_path)
+        serialized.cookies.set("session", create_session_token(finance.id))
+        task_response = serialized.get(f"/api/v1/exports/{task.id}")
+
+        assert payload["export_metadata"]["invoice_count"] == 1
+        assert payload["invoices"][0]["invoice_number"] == "10000001"
+        assert payload["invoices"][0]["project_id"] == str(shared.id)
+        assert payload["invoices"][0]["project_name"] == "共享差旅"
+        assert task_response.json()["data"]["created_by_user"] == {
+            "id": str(finance.id),
+            "display_name": "Finance",
+            "email": "finance@example.com",
+        }
+
+
+def test_export_failure_persists_safe_error_message(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    with make_session() as session:
+        user = create_user(session, email="user@example.com", password="password", display_name="User", role=UserRole.user)
+        task = ExportTask(
+            format=ExportFormat.json,
+            filters={},
+            status=ExportStatus.queued,
+            created_by=user.id,
+        )
+        session.add(task)
+        session.commit()
+
+        def fail_render(*args, **kwargs):
+            raise RuntimeError("failed while writing /data/exports/private.json")
+
+        monkeypatch.setattr("app.domain.export.service.render_export", fail_render)
+
+        with pytest.raises(RuntimeError):
+            run_export_task(task.id, db=session, export_root=tmp_path)
+
+        session.refresh(task)
+        assert task.status == ExportStatus.failed
+        assert task.error_message == "Export task failed (RuntimeError)"
+        assert "/data/" not in task.error_message

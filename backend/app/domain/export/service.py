@@ -36,6 +36,9 @@ INVOICE_COLUMNS = [
     "amount_with_tax",
     "currency",
     "expense_scene",
+    "project_id",
+    "project_name",
+    "project_visibility",
     "status",
     "document_filename",
 ]
@@ -91,23 +94,29 @@ def run_export_task(task_id: UUID | str, *, db: Session, export_root: Path | Non
     if task is None:
         raise AppError("EXPORT_NOT_FOUND", "Export task was not found", status_code=404)
     task.status = ExportStatus.running
+    task.error_message = None
     db.flush()
+    try:
+        export_root = export_root or get_settings().export_path
+        export_root.mkdir(parents=True, exist_ok=True)
+        invoices = _select_invoices(db, task.created_by_user, task.filters or {})
+        payload = build_export_payload(task, invoices)
+        content = render_export(task.format, payload)
+        storage_key = f"exports/{task.id}.{task.format.value}"
+        path = export_root / storage_key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
 
-    export_root = export_root or get_settings().export_path
-    export_root.mkdir(parents=True, exist_ok=True)
-    invoices = _select_invoices(db, task.created_by_user, task.filters or {})
-    payload = build_export_payload(task, invoices)
-    content = render_export(task.format, payload)
-    storage_key = f"exports/{task.id}.{task.format.value}"
-    path = export_root / storage_key
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(content)
-
-    task.storage_key = storage_key
-    task.status = ExportStatus.completed
-    task.expires_at = now + timedelta(days=EXPORT_TTL_DAYS)
-    db.commit()
-    return task
+        task.storage_key = storage_key
+        task.status = ExportStatus.completed
+        task.expires_at = now + timedelta(days=EXPORT_TTL_DAYS)
+        db.commit()
+        return task
+    except Exception as exc:
+        task.status = ExportStatus.failed
+        task.error_message = f"Export task failed ({exc.__class__.__name__})"
+        db.commit()
+        raise
 
 
 def serialize_export_task(task: ExportTask) -> dict[str, Any]:
@@ -117,7 +126,17 @@ def serialize_export_task(task: ExportTask) -> dict[str, Any]:
         "filters": task.filters or {},
         "status": task.status.value,
         "storage_key": task.storage_key,
+        "error_message": task.error_message,
         "created_by": str(task.created_by),
+        "created_by_user": (
+            {
+                "id": str(task.created_by_user.id),
+                "display_name": task.created_by_user.display_name,
+                "email": task.created_by_user.email,
+            }
+            if task.created_by_user is not None
+            else None
+        ),
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "expires_at": task.expires_at.isoformat() if task.expires_at else None,
     }
@@ -159,11 +178,20 @@ def _select_invoices(db: Session, user: User, filters: dict[str, Any]) -> list[I
     statement = (
         select(Invoice)
         .join(Invoice.document)
-        .options(selectinload(Invoice.document), selectinload(Invoice.items), selectinload(Invoice.latest_ocr_job))
+        .options(
+            selectinload(Invoice.document).selectinload(InvoiceDocument.project),
+            selectinload(Invoice.items),
+            selectinload(Invoice.latest_ocr_job),
+        )
         .order_by(Invoice.invoice_date.desc(), Invoice.id.desc())
     )
     if user.role not in {UserRole.finance, UserRole.admin}:
         statement = statement.where(InvoiceDocument.uploaded_by == user.id)
+    elif filters.get("uploaded_by"):
+        statement = statement.where(InvoiceDocument.uploaded_by == UUID(str(filters["uploaded_by"])))
+
+    if filters.get("project_id"):
+        statement = statement.where(InvoiceDocument.project_id == UUID(str(filters["project_id"])))
 
     statuses = filters.get("status")
     if statuses:
@@ -193,6 +221,9 @@ def _invoice_row(invoice: Invoice) -> dict[str, str | None]:
         "amount_with_tax": _scalar(invoice.amount_with_tax),
         "currency": invoice.currency,
         "expense_scene": invoice.expense_scene,
+        "project_id": str(invoice.document.project_id) if invoice.document and invoice.document.project_id else None,
+        "project_name": invoice.document.project.name if invoice.document and invoice.document.project else None,
+        "project_visibility": invoice.document.project.visibility.value if invoice.document and invoice.document.project else None,
         "status": invoice.status.value,
         "document_filename": invoice.document.original_filename if invoice.document else None,
     }
