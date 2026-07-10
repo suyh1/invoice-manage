@@ -12,7 +12,7 @@ from app.core.audit import record_audit_log
 from app.core.errors import AppError
 from app.db.session import get_db
 from app.domain.invoice.duplicate import serialize_duplicate_check
-from app.domain.invoice.models import DuplicateCheck, DuplicateCheckStatus
+from app.domain.invoice.models import DuplicateCheck, DuplicateCheckStatus, InvoiceStatus
 from app.domain.invoice.service import InvoiceService, serialize_invoice_detail
 from app.domain.user.models import User, UserRole
 
@@ -52,6 +52,10 @@ class InvoiceItemPayload(BaseModel):
 
 class InvoiceItemsPayload(BaseModel):
     items: list[InvoiceItemPayload] = Field(max_length=500)
+
+
+class BulkConfirmPayload(BaseModel):
+    invoice_ids: list[UUID] = Field(min_length=1, max_length=100)
 
 
 @router.get("")
@@ -96,6 +100,49 @@ def list_invoices(
         "q": q,
     }
     return {"data": InvoiceService().list_invoices(db, current_user, filters)}
+
+
+@router.post("/bulk-confirm")
+def bulk_confirm_invoices(
+    payload: BulkConfirmPayload,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    service = InvoiceService()
+    invoices = [service.get_invoice(db, invoice_id, current_user) for invoice_id in payload.invoice_ids]
+    if any(
+        invoice.status != InvoiceStatus.needs_review or invoice.is_duplicate_suspected
+        for invoice in invoices
+    ):
+        raise AppError(
+            "REVIEW_BULK_CONFIRM_BLOCKED",
+            "Only clean invoices awaiting review can be confirmed in bulk",
+            status_code=409,
+        )
+
+    for invoice in invoices:
+        service.confirm_invoice(db, invoice, current_user)
+        record_audit_log(
+            db,
+            actor=current_user,
+            action="invoice.confirm",
+            resource_type="invoice",
+            resource_id=invoice.id,
+            metadata={"source": "bulk"},
+            request=request,
+        )
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="invoice.bulk_confirm",
+        resource_type="invoice_batch",
+        resource_id=None,
+        metadata={"invoice_ids": [str(invoice.id) for invoice in invoices]},
+        request=request,
+    )
+    db.commit()
+    return {"data": {"confirmed_ids": [str(invoice.id) for invoice in invoices]}}
 
 
 @router.get("/{invoice_id}")

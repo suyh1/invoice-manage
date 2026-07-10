@@ -7,11 +7,13 @@ from app.api.routes.admin_ocr import router as admin_ocr_router
 from app.api.routes.admin_users import router as admin_users_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.documents import router as documents_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.exports import router as exports_router
 from app.api.routes.health import router as health_router
 from app.api.routes.invoices import duplicate_router, router as invoices_router
 from app.api.routes.ocr_jobs import router as ocr_jobs_router
 from app.api.routes.projects import router as projects_router
+from app.api.routes.review import router as review_router
 from app.core.audit import install_secret_redaction_filter
 from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler
@@ -27,8 +29,10 @@ def create_app() -> FastAPI:
     application.include_router(admin_users_router)
     application.include_router(auth_router)
     application.include_router(documents_router)
+    application.include_router(dashboard_router)
     application.include_router(ocr_jobs_router)
     application.include_router(projects_router)
+    application.include_router(review_router)
     application.include_router(duplicate_router)
     application.include_router(invoices_router)
     application.include_router(exports_router)

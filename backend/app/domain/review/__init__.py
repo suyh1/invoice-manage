@@ -1,0 +1,1 @@
+"""Invoice review queue domain."""
