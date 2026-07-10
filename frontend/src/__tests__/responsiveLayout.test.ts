@@ -21,4 +21,15 @@ describe("responsive workspace layout", () => {
       /\.invoice-filters\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/,
     );
   });
+
+  it("defines the approved motion authentication visual contract", () => {
+    expect(styles).toContain(".motion-auth-page");
+    expect(styles).toContain("backdrop-filter: blur(28px) saturate(140%);");
+    expect(styles).toContain("@keyframes line-pulse");
+    expect(styles).toContain("@keyframes marquee-left");
+    expect(styles).toContain("auth-motion-hero-desktop.webp");
+    expect(styles).toContain("auth-motion-hero-mobile.webp");
+    expect(styles).toContain("@media (max-width: 810px)");
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+  });
 });
