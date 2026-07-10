@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -39,6 +39,15 @@ describe("AuthLandingPage", () => {
     await user.click(screen.getByLabelText("邮箱"));
     expect(panel.getAttribute("data-engaged")).toBe("true");
     await user.click(screen.getByLabelText("密码"));
+    expect(panel.getAttribute("data-engaged")).toBe("true");
+  });
+
+  it("raises the glass panel when an input click does not emit a focus event", () => {
+    render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
+    const panel = screen.getByRole("region", { name: "登录系统" });
+
+    expect(panel.getAttribute("data-engaged")).toBe("false");
+    fireEvent.click(screen.getByLabelText("邮箱"));
     expect(panel.getAttribute("data-engaged")).toBe("true");
   });
 

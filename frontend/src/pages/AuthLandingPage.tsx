@@ -72,6 +72,11 @@ export function AuthLandingPage({
         className="auth-panel motion-auth-panel"
         data-engaged={panelEngaged}
         id="auth-panel"
+        onClickCapture={(event) => {
+          if (event.target instanceof HTMLInputElement) {
+            setEngaged(true);
+          }
+        }}
         onFocusCapture={() => setEngaged(true)}
       >
         <div className="auth-panel-heading">
