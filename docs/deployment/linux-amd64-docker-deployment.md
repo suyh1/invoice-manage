@@ -78,6 +78,8 @@ services:
 
 OCR 运营商、上传约束、QPS、重试策略和额度提醒使用系统默认值，并可在管理员设置页维护。不要在 `docker-compose.yml`、运行命令或 shell history 中填写腾讯云 `SecretId` / `SecretKey`；这些值只能在管理员设置页录入，并由应用加密保存。
 
+应用不会自动读取 dotenv 配置文件。测试或特殊的非 Compose 部署仍可通过真实进程环境变量提供配置，并可用 `DATABASE_URL` 覆盖拆分后的 PostgreSQL 字段；标准生产 Compose 不使用该覆盖项。
+
 ## 5. 镜像构建
 
 构建发布镜像：
@@ -210,11 +212,12 @@ docker compose ps
 健康检查：
 
 ```bash
-curl -fsS http://localhost:8080/healthz
-curl -fsS http://localhost:8080/readyz
+HOST_PORT=8080
+curl -fsS "http://localhost:${HOST_PORT}/healthz"
+curl -fsS "http://localhost:${HOST_PORT}/readyz"
 ```
 
-然后打开 `http://<服务器地址>:8080` 或 HTTPS 域名：
+然后打开 `http://<服务器地址>:<HOST_PORT>`：
 
 1. 新数据库会显示初始化落地页。
 2. 创建第一位用户，该用户自动成为管理员并立即登录。
@@ -317,6 +320,21 @@ docker compose down
 
 ## 12. 升级与回滚
 
+### 12.1 首次从旧版 dotenv 部署升级
+
+旧版 dotenv 文件在本版本中不再被应用或 Compose 读取。第一次升级前，先把旧配置中的以下原值迁入新版 `docker-compose.yml`：
+
+- `POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`：写入 `x-postgres-credentials`
+- `OCR_CONFIG_ENCRYPTION_KEY`：写入 `x-app-environment`
+- `APP_SECRET_KEY`：写入 `app` 服务的 `environment`
+- 旧的宿主机访问端口：写入 `ports` 左侧
+
+这些值必须保持与旧部署一致，尤其不要重新生成 `POSTGRES_PASSWORD` 或 `OCR_CONFIG_ENCRYPTION_KEY`。否则可能无法连接已有数据库，或无法解密数据库中保存的 OCR 运营商凭据。
+
+迁移配置并确认新服务可以登录、读取历史发票和测试 OCR 配置后，旧 dotenv 文件才可以退出部署流程。
+
+### 12.2 常规升级
+
 升级前：
 
 - 备份数据库和文件
@@ -327,9 +345,10 @@ docker compose down
 升级：
 
 ```bash
+HOST_PORT=8080
 docker compose run --rm app migrate
 docker compose up -d
-curl -fsS http://localhost:8080/readyz
+curl -fsS "http://localhost:${HOST_PORT}/readyz"
 ```
 
 执行前先将 Compose 中 `app` 和 `worker` 的镜像更新为目标版本。

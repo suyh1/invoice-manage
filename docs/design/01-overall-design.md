@@ -188,14 +188,14 @@ MVP 选择 Docker volume 本地文件存储：
 - `worker`：OCR 和导出异步任务，复用同一业务镜像
 - `postgres`：结构化数据
 - `redis`：队列与限流
-- `reverse-proxy`：生产可选，推荐 Caddy/Nginx/Traefik
+
+如部署平台需要 HTTPS，由项目外部的 NAS、网关或负载均衡器提供，不属于本项目 Compose 拓扑。
 
 ## 8. 系统架构
 
 ```mermaid
 flowchart TB
-  U["浏览器用户"] --> RP["HTTPS 反向代理"]
-  RP --> APP["app 容器<br/>FastAPI + React 静态资源"]
+  U["浏览器用户"] --> APP["app 容器<br/>FastAPI + React 静态资源"]
   APP --> DB[("PostgreSQL")]
   APP --> FS["/data/uploads<br/>/data/exports"]
   APP --> R[("Redis")]
@@ -532,7 +532,7 @@ MVP 使用规则检测疑似重复：
 - 固定基础镜像版本，不使用 `latest`。
 - 使用 docker compose 运行 app、worker、postgres、redis。
 - 数据、上传、导出必须挂载 volume。
-- 生产建议 HTTPS 反代。
+- 如需 HTTPS，由项目外部的部署平台提供。
 - 默认内部 OCR QPS 为 8，按运营商配置覆盖。
 - 容器重启不能丢数据。
 

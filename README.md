@@ -46,13 +46,14 @@ docker compose ps
 
 本地构建时，应将 Compose 中 `app` 和 `worker` 的 `image` 设置为 `invoice-ocr-app:0.2.0`。
 
-打开 [http://localhost:8080](http://localhost:8080)。新数据库会显示初始化落地页，创建的第一个账号拥有管理员权限。已经初始化的数据库会显示登录表单。
+打开 `http://localhost:<HOST_PORT>`（默认端口为 `8080`）。新数据库会显示初始化落地页，创建的第一个账号拥有管理员权限。已经初始化的数据库会显示登录表单。
 
 健康检查：
 
 ```bash
-curl -fsS http://localhost:8080/healthz
-curl -fsS http://localhost:8080/readyz
+HOST_PORT=8080
+curl -fsS "http://localhost:${HOST_PORT}/healthz"
+curl -fsS "http://localhost:${HOST_PORT}/readyz"
 ```
 
 停止服务但保留数据：
@@ -75,7 +76,11 @@ docker compose down
 
 ## 升级现有部署
 
-升级前备份 PostgreSQL、上传和导出 volumes，然后运行：
+升级前备份 PostgreSQL、上传和导出 volumes。
+
+如果当前版本仍使用旧版 dotenv 配置文件，必须先把原有的 `POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`、`APP_SECRET_KEY` 和 `OCR_CONFIG_ENCRYPTION_KEY` 原值写入新版 Compose。不要在这次升级中重新生成这些值；否则可能无法连接已有数据库、现有登录会话失效，或数据库中的 OCR 凭据无法解密。原宿主机端口应写到 `ports` 左侧。
+
+确认 Compose 中的镜像和上述配置后运行：
 
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
@@ -83,7 +88,7 @@ docker compose run --rm app migrate
 docker compose up -d
 ```
 
-这些命令不会删除现有 volumes。详细备份、恢复和生产 HTTPS 配置见部署文档。
+这些命令不会删除现有 volumes。详细备份、恢复和外部 HTTPS 说明见部署文档。
 
 ## 本地开发与测试
 
