@@ -46,6 +46,7 @@ class User(Base, TimestampMixin):
     )
     export_tasks = relationship("ExportTask", back_populates="created_by_user")
     audit_logs = relationship("AuditLog", back_populates="actor")
+    projects = relationship("Project", back_populates="created_by_user")
 
 
 class AuditLog(Base):

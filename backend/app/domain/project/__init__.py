@@ -1,0 +1,1 @@
+"""Invoice project domain."""

@@ -36,6 +36,7 @@ def import_all_models() -> None:
     from app.domain.file import models as file_models  # noqa: F401
     from app.domain.invoice import models as invoice_models  # noqa: F401
     from app.domain.ocr import models as ocr_models  # noqa: F401
+    from app.domain.project import models as project_models  # noqa: F401
     from app.domain.system import models as system_models  # noqa: F401
     from app.domain.user import models as user_models  # noqa: F401
 
