@@ -23,6 +23,9 @@ describe("responsive workspace layout", () => {
   });
 
   it("defines the approved motion authentication visual contract", () => {
+    const desktopSingleScreenRules = styles.match(
+      /@media \(min-width: 811px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
+    )?.[1] ?? "";
     const mobileAuthRules = styles.match(
       /@media \(max-width: 810px\) \{([\s\S]*?)@media \(max-width: 440px\)/,
     )?.[1];
@@ -35,6 +38,14 @@ describe("responsive workspace layout", () => {
     expect(styles).toContain("auth-motion-hero-mobile.webp");
     expect(styles).toContain("@media (max-width: 810px)");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(desktopSingleScreenRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\)\s*\{[^}]*height:\s*100dvh;[^}]*overflow:\s*hidden;/,
+    );
+    expect(desktopSingleScreenRules).toContain("grid-template-rows: minmax(0, 1fr) auto auto auto;");
     expect(mobileAuthRules).toMatch(/\.motion-auth-hero\s*\{[^}]*min-height:\s*780px;/);
+    expect(styles).not.toContain(".motion-auth-menu-button");
+    expect(styles).not.toContain(".motion-auth-menu {");
+    expect(styles).not.toContain(".motion-auth-menu-close");
+    expect(styles).not.toContain("围绕企业财务流程构建");
   });
 });
