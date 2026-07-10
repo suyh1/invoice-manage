@@ -51,6 +51,20 @@ describe("AuthLandingPage", () => {
     expect(panel.getAttribute("data-engaged")).toBe("true");
   });
 
+  it("keeps the glass panel resting when the password toggle receives focus or a click", () => {
+    render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
+    const panel = screen.getByRole("region", { name: "登录系统" });
+    const passwordInput = screen.getByLabelText("密码");
+    const passwordToggle = screen.getByRole("button", { name: "显示密码" });
+
+    expect(panel.getAttribute("data-engaged")).toBe("false");
+    fireEvent.focus(passwordToggle);
+    expect(panel.getAttribute("data-engaged")).toBe("false");
+    fireEvent.click(passwordToggle);
+    expect(panel.getAttribute("data-engaged")).toBe("false");
+    expect(passwordInput.getAttribute("type")).toBe("text");
+  });
+
   it("keeps the existing login field and unsupported-action contract", () => {
     render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
 

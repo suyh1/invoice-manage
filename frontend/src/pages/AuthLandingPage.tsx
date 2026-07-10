@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent, type SyntheticEvent } from "react";
 import { Eye, EyeOff, LogIn, RotateCcw, UserRoundPlus } from "lucide-react";
 
 import { MotionLandingChrome } from "../components/auth/MotionLandingChrome";
@@ -61,6 +61,12 @@ export function AuthLandingPage({
     });
   }
 
+  function engagePanelForInput(event: SyntheticEvent<HTMLElement>) {
+    if (event.target instanceof HTMLInputElement) {
+      setEngaged(true);
+    }
+  }
+
   const passwordInputType = showPassword ? "text" : "password";
   const passwordToggleLabel = showPassword ? "隐藏密码" : "显示密码";
 
@@ -72,12 +78,8 @@ export function AuthLandingPage({
         className="auth-panel motion-auth-panel"
         data-engaged={panelEngaged}
         id="auth-panel"
-        onClickCapture={(event) => {
-          if (event.target instanceof HTMLInputElement) {
-            setEngaged(true);
-          }
-        }}
-        onFocusCapture={() => setEngaged(true)}
+        onClickCapture={engagePanelForInput}
+        onFocusCapture={engagePanelForInput}
       >
         <div className="auth-panel-heading">
           <h2 id="auth-panel-title">{isBootstrap ? "创建首位管理员" : "登录系统"}</h2>
