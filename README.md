@@ -26,31 +26,25 @@
 
 ## 使用 Docker 启动
 
-准备配置：
+部署前直接编辑 `docker-compose.yml`：
 
-```bash
-cp .env.example .env
-chmod 600 .env
-```
+- 将 `app` 和 `worker` 的 `image` 改为实际镜像地址或本地镜像标签。
+- 在 `x-postgres-credentials` 中替换数据库密码。
+- 替换 `OCR_CONFIG_ENCRYPTION_KEY` 和 `APP_SECRET_KEY`。
+- 如需自定义访问端口，只修改 `ports` 左侧，例如 `18080:8080`。
 
-本机 HTTP 检查时，将 `.env` 中以下两项改为：
-
-```env
-APP_BASE_URL=http://localhost:8080
-SESSION_COOKIE_SECURE=false
-```
-
-务必替换 `APP_SECRET_KEY`、`OCR_CONFIG_ENCRYPTION_KEY` 和数据库密码。OCR 的 `SecretId`、`SecretKey` 不写入 `.env`，启动后由管理员在设置页录入。
+真实密码和应用密钥会保存在部署用 Compose 文件中，不要把修改后的生产配置提交到公开仓库。OCR 运营商的 `SecretId`、`SecretKey` 不写入 Compose，启动后由管理员在设置页录入。
 
 构建、迁移并启动：
 
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
-export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
 docker compose run --rm app migrate
 docker compose up -d
 docker compose ps
 ```
+
+本地构建时，应将 Compose 中 `app` 和 `worker` 的 `image` 设置为 `invoice-ocr-app:0.2.0`。
 
 打开 [http://localhost:8080](http://localhost:8080)。新数据库会显示初始化落地页，创建的第一个账号拥有管理员权限。已经初始化的数据库会显示登录表单。
 
@@ -85,7 +79,6 @@ docker compose down
 
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
-export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
 docker compose run --rm app migrate
 docker compose up -d
 ```

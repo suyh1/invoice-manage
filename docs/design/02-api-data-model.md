@@ -247,7 +247,7 @@ erDiagram
 
 - `is_default=true` 的启用配置在 MVP 中最多一条。
 - `credential_ciphertext` 必须由应用级加密密钥加密，任何 API 响应不得返回明文。
-- 腾讯云 SecretId/SecretKey 不允许来自 `.env` 或 Docker `environment`。
+- 腾讯云 SecretId/SecretKey 不允许来自部署文件或 Docker `environment`。
 
 ### 2.3.2 `ocr_provider_usage_daily`
 

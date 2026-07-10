@@ -74,6 +74,16 @@ def test_unused_trusted_proxies_setting_is_not_exposed() -> None:
     assert "trusted_proxies" not in settings.safe_dict()
 
 
+def test_settings_do_not_load_dotenv_files(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("POSTGRES_PASSWORD", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("POSTGRES_PASSWORD=from-dotenv\n", encoding="utf-8")
+
+    settings = Settings()
+
+    assert settings.postgres_password == "change-me"
+
+
 def test_credential_cipher_encrypts_and_decrypts_payload_without_plaintext() -> None:
     cipher = CredentialCipher("unit-test-encryption-key-with-enough-entropy")
     credential = {"secret_id": "AKIDEXAMPLE", "secret_key": "very-sensitive-key"}

@@ -48,7 +48,7 @@ MVP 明确不做：
 | 默认接口 | `VatInvoiceOCR` |
 | 后续预留运营商 | `aliyun`、`mock` |
 | 配置入口 | 管理员设置页 |
-| 密钥来源 | 数据库加密保存，不通过 `.env` 或 Docker `environment` 注入 |
+| 密钥来源 | 数据库加密保存，不通过部署文件或 Docker `environment` 注入 |
 | 生效策略 | 只有一个默认启用运营商；后续可扩展按租户、发票类型或队列路由 |
 
 MVP 中腾讯云适配器必须内置以下约束：
@@ -225,7 +225,6 @@ flowchart TB
 .
   Dockerfile
   docker-compose.yml
-  .env.example
   README.md
 
   backend/
@@ -328,7 +327,7 @@ stateDiagram-v2
 后端只允许通过 `OcrProviderClient` 协议调用 OCR 运营商。MVP 实现 `TencentVatInvoiceOcrClient`，并注册到 `OcrProviderRegistry`：
 
 - OCR 供应商配置从数据库读取，密钥字段加密保存。
-- 不通过 `.env`、Docker `environment` 或 compose 明文变量配置腾讯云 `SecretId` / `SecretKey`。
+- 不通过部署文件、Docker `environment` 或 compose 明文变量配置腾讯云 `SecretId` / `SecretKey`。
 - 腾讯云适配器内置 endpoint、Action、Version 默认值；管理员可在设置页查看并按需覆盖非敏感项。
 - 默认 region 为 `ap-guangzhou`，可在设置页配置覆盖。
 - 本地文件转 Base64 传 `ImageBase64`。
@@ -457,7 +456,7 @@ MVP 使用规则检测疑似重复：
 
 - OCR 运营商密钥由管理员在设置页录入、测试、启用和轮换。
 - OCR 运营商密钥必须加密写入数据库，使用应用级加密密钥解密；应用级加密密钥可通过环境变量或 Docker Secret 提供。
-- 不通过 `.env` 或 Docker `environment` 传递腾讯云 `SecretId` / `SecretKey`。
+- 不通过部署文件或 Docker `environment` 传递腾讯云 `SecretId` / `SecretKey`。
 - 不写入日志。
 - 不返回前端。
 - 配置页只显示“已配置/未配置”、不可逆凭据摘要和测试结果，不回显完整 SecretId 或 SecretKey。
@@ -545,7 +544,7 @@ MVP 最低验收：
 
 - 可在 linux x86_64 通过 Docker 部署。
 - 管理员可在设置页配置腾讯云 OCR 凭据、测试连接、启用默认运营商并轮换密钥。
-- `.env` 和 Docker `environment` 不包含腾讯云 `SecretId` / `SecretKey`。
+- 部署文件和 Docker `environment` 不包含腾讯云 `SecretId` / `SecretKey`。
 - OCR 运营商配置模型保留阿里云等后续扩展能力。
 - 上传合法 PNG/JPG/JPEG/PDF 后可完成识别并保存结果。
 - GIF、超限文件、非法像素、多页 PDF 有明确错误。

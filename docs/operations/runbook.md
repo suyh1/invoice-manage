@@ -7,8 +7,8 @@
 - 为 `linux/amd64` 构建不可变版本标签的镜像。
 - 确认镜像用户为 `invoice`，架构为 `amd64`。
 - 审阅 CI 生成的 SBOM 和漏洞扫描结果。
-- 确认 `.env` 只包含基础设施配置和应用加密密钥。
-- 确认腾讯云 `SecretId`、`SecretKey` 不存在于 `.env`、Compose、shell history 和 CI 日志。
+- 确认生产 `docker-compose.yml` 中的数据库密码和应用加密密钥已替换，并受到访问控制。
+- 确认腾讯云 `SecretId`、`SecretKey` 不存在于 Compose、shell history 和 CI 日志。
 - 在启动新版本前执行数据库迁移。
 - 升级时保留 PostgreSQL、Redis、上传、导出和临时文件 volumes。
 - 检查 `/healthz`、`/readyz`、用户、项目、待校对和导出流程。
@@ -18,11 +18,12 @@
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
 docker inspect invoice-ocr-app:0.2.0 --format '{{.Config.User}} {{.Architecture}}'
-export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
 docker compose run --rm app migrate
 docker compose up -d
 docker compose ps
 ```
+
+执行前将 Compose 中 `app` 和 `worker` 的 `image` 更新为本次发布标签。
 
 镜像检查预期输出：
 
@@ -80,7 +81,6 @@ docker compose ps
 升级前备份数据库与文件 volumes，并记录当前镜像标签：
 
 ```bash
-export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
 docker compose run --rm app migrate
 docker compose up -d
 curl -fsS http://localhost:8080/readyz
@@ -111,6 +111,6 @@ docker compose logs --tail=200 postgres redis
 ## 备份与恢复
 
 - PostgreSQL 与 `app_uploads`、`app_exports` 必须按同一时间点备份。
-- `.env` 和 `OCR_CONFIG_ENCRYPTION_KEY` 需要加密备份，否则数据库中的 OCR 凭据无法解密。
+- 部署用 `docker-compose.yml` 及其中的 `OCR_CONFIG_ENCRYPTION_KEY` 需要加密备份，否则数据库中的 OCR 凭据无法解密。
 - 恢复后运行 `/readyz`，抽查最近发票、项目归属、校对明细和已知导出文件。
 - Redis 主要承载队列和限流状态，恢复时仍应保留其 volume 或明确接受短期任务状态丢失。

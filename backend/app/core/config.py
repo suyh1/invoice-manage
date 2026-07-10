@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     )
     worker_concurrency: int = Field(default=4, validation_alias="WORKER_CONCURRENCY")
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
     @property
     def database_url(self) -> str:
