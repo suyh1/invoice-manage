@@ -1,9 +1,13 @@
 import type { PropsWithChildren } from "react";
 
 import { appRoutes, type AppRoute } from "../app/router";
+import { useAuth } from "../auth/AuthContext";
 import { OcrQuotaStatus } from "./OcrQuotaStatus";
+import { UserMenu } from "./UserMenu";
 
 export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRoute: AppRoute }>) {
+  const auth = useAuth();
+
   return (
     <main className="app-shell">
       <aside className="sidebar" aria-label="主导航">
@@ -38,6 +42,9 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
           <div className="topbar-actions" aria-label="系统状态">
             <span className="status-token success">本地部署</span>
             <span className="status-token neutral">Mock OCR 可用</span>
+            {auth.user ? (
+              <UserMenu user={auth.user} onChangePassword={auth.changePassword} onLogout={auth.logout} />
+            ) : null}
           </div>
         </header>
         {children}
