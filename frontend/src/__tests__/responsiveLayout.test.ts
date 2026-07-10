@@ -48,4 +48,35 @@ describe("responsive workspace layout", () => {
     expect(styles).not.toContain(".motion-auth-menu");
     expect(styles).not.toContain("围绕企业财务流程构建");
   });
+
+  it("keeps short desktop authentication viewports within one screen", () => {
+    const shortDesktopRules = styles.match(
+      /@media \(min-width: 811px\) and \(max-height: 719px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
+    )?.[1] ?? "";
+    const shortDesktopAuthPageRule = shortDesktopRules.match(
+      /\.motion-auth-page:not\(\.is-bootstrap\)\s*\{([^}]*)\}/,
+    )?.[1] ?? "";
+
+    expect(shortDesktopAuthPageRule).toContain("height: 100dvh;");
+    expect(shortDesktopAuthPageRule).toContain("min-height: 0;");
+    expect(shortDesktopAuthPageRule).toContain("overflow: hidden;");
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-hero\s*\{[^}]*padding:/,
+    );
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-copy h1\s*\{[^}]*font-size:/,
+    );
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel\s*\{[^}]*padding:/,
+    );
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel \.auth-form input\s*\{[^}]*min-height:/,
+    );
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-workflow\s*\{[^}]*padding:/,
+    );
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-footer\s*\{[^}]*padding:/,
+    );
+  });
 });
