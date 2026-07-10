@@ -5,7 +5,7 @@ backend/__pycache__
 frontend/dist
 frontend/node_modules
 node_modules
+image
 task_plan.md
 findings.md
 progress.md
-

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type SyntheticEvent } from "react";
+import { useRef, useState, type FocusEvent, type FormEvent, type SyntheticEvent } from "react";
 import { Eye, EyeOff, LogIn, RotateCcw, UserRoundPlus } from "lucide-react";
 
 import { MotionLandingChrome } from "../components/auth/MotionLandingChrome";
@@ -67,6 +67,19 @@ export function AuthLandingPage({
     }
   }
 
+  function settlePanelAfterInputBlur(event: FocusEvent<HTMLElement>) {
+    if (!(event.target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof HTMLInputElement && event.currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    setEngaged(false);
+  }
+
   const passwordInputType = showPassword ? "text" : "password";
   const passwordToggleLabel = showPassword ? "隐藏密码" : "显示密码";
 
@@ -78,6 +91,7 @@ export function AuthLandingPage({
         className="auth-panel motion-auth-panel"
         data-engaged={panelEngaged}
         id="auth-panel"
+        onBlurCapture={settlePanelAfterInputBlur}
         onClickCapture={engagePanelForInput}
         onFocusCapture={engagePanelForInput}
       >

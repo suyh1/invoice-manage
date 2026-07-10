@@ -30,16 +30,20 @@ describe("AuthLandingPage", () => {
     expect(screen.queryByText("Airbnb")).toBeNull();
   });
 
-  it("raises and retains the glass panel after the first field focus", async () => {
+  it("raises the glass panel while a field is focused and settles after blur", async () => {
     const user = userEvent.setup();
     render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
     const panel = screen.getByRole("region", { name: "登录系统" });
+    const emailInput = screen.getByLabelText("邮箱");
+    const passwordInput = screen.getByLabelText("密码");
 
     expect(panel.getAttribute("data-engaged")).toBe("false");
-    await user.click(screen.getByLabelText("邮箱"));
+    await user.click(emailInput);
     expect(panel.getAttribute("data-engaged")).toBe("true");
-    await user.click(screen.getByLabelText("密码"));
+    await user.click(passwordInput);
     expect(panel.getAttribute("data-engaged")).toBe("true");
+    fireEvent.blur(passwordInput, { relatedTarget: document.body });
+    expect(panel.getAttribute("data-engaged")).toBe("false");
   });
 
   it("raises the glass panel when an input click does not emit a focus event", () => {

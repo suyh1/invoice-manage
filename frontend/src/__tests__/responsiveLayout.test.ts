@@ -34,6 +34,8 @@ describe("responsive workspace layout", () => {
     )?.[1];
 
     expect(styles).toContain(".motion-auth-page");
+    expect(styles).toContain("--auth-panel-rest-y: 18px;");
+    expect(styles).toContain("--auth-panel-engaged-y: -10px;");
     expect(styles).toContain("backdrop-filter: blur(28px) saturate(140%);");
     expect(styles).toContain("@keyframes line-pulse");
     expect(styles).toContain("@keyframes marquee-left");
@@ -89,6 +91,17 @@ describe("responsive workspace layout", () => {
     expect(shortDesktopRules).toMatch(
       /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-footer\s*\{[^}]*padding:/,
     );
+  });
+
+  it("keeps the compact desktop login panel near the hero visual center", () => {
+    const shortDesktopRules = styles.match(
+      /@media \(min-width: 811px\) and \(max-height: 899px\),\s*\(min-width: 811px\) and \(max-width: 1200px\) and \(max-height: 959px\) \{([\s\S]*?)(?=@media \(min-width: 811px\) and \(max-height: 559px\)|@media \(max-width: 810px\))/,
+    )?.[1] ?? "";
+    const compactDesktopPanelRule = shortDesktopRules.match(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel\s*\{([^}]*)\}/,
+    )?.[1] ?? "";
+
+    expect(compactDesktopPanelRule).toContain("margin-top: 148px;");
   });
 
   it("keeps authentication accessible in ultra-short desktop viewports", () => {
