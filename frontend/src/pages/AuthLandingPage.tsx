@@ -31,7 +31,6 @@ export function AuthLandingPage({
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [engaged, setEngaged] = useState(() => forceEngagedPanel({ busy, errorMessage, mode }));
-  const firstInputRef = useRef<HTMLInputElement>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
   const isBootstrap = mode === "bootstrap";
   const visibleError = localError ?? errorMessage;
@@ -96,7 +95,6 @@ export function AuthLandingPage({
                 id="auth-display-name"
                 name="display_name"
                 placeholder="请输入姓名"
-                ref={firstInputRef}
                 required
               />
             </label>
@@ -112,7 +110,6 @@ export function AuthLandingPage({
               inputMode="email"
               name="email"
               placeholder="name@company.com"
-              ref={isBootstrap ? undefined : firstInputRef}
               required
               spellCheck={false}
               type="email"
