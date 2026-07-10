@@ -2523,7 +2523,6 @@ label {
   --auth-z-lines: 3;
   --auth-z-panel-engaged: 4;
   --auth-z-navbar: 20;
-  --auth-z-menu: 100;
   min-height: 100dvh;
   overflow-x: clip;
   background: var(--auth-bg);
@@ -2570,126 +2569,6 @@ label {
   font-size: 10px;
   font-weight: 600;
   line-height: 1.25;
-}
-
-.motion-auth-menu-button {
-  display: inline-flex;
-  height: 42px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 999px;
-  background: var(--auth-text);
-  color: #ffffff;
-  padding: 0 18px;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.08);
-}
-
-.motion-auth-menu-button:hover {
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.12);
-  transform: translateY(-1px);
-}
-
-.motion-auth-menu-button:focus-visible {
-  box-shadow: 0 0 0 4px rgb(23 201 100 / 0.24);
-}
-
-.motion-auth-menu-button svg {
-  transition: transform 240ms ease;
-}
-
-.motion-auth-menu-button[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-.motion-auth-menu {
-  position: fixed;
-  inset: 0;
-  z-index: var(--auth-z-menu);
-  display: grid;
-  min-height: 100dvh;
-  grid-template-rows: 1fr auto;
-  background: #ffffff;
-  color: var(--auth-text);
-  padding: 100px 36px 30px;
-}
-
-.motion-auth-menu nav {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 8px;
-}
-
-.motion-auth-menu nav a {
-  position: relative;
-  color: var(--auth-text);
-  font-size: 48px;
-  font-weight: 600;
-  line-height: 1.18;
-}
-
-.motion-auth-menu nav a::after {
-  position: absolute;
-  right: 0;
-  bottom: -3px;
-  left: 0;
-  height: 1px;
-  background: currentColor;
-  content: "";
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 240ms ease;
-}
-
-.motion-auth-menu nav a:hover::after,
-.motion-auth-menu nav a:focus-visible::after {
-  transform: scaleX(1);
-  transform-origin: left;
-}
-
-.motion-auth-menu nav a:focus-visible {
-  box-shadow: none;
-  color: #3f3f3f;
-}
-
-.motion-auth-menu footer {
-  display: flex;
-  width: min(100%, 1200px);
-  justify-content: space-between;
-  gap: 24px;
-  margin-inline: auto;
-  border-top: 1px solid var(--auth-border);
-  color: var(--auth-muted);
-  padding-top: 20px;
-  font-size: 12px;
-}
-
-.motion-auth-menu-close {
-  position: absolute;
-  top: 17px;
-  right: max(36px, calc((100vw - 1200px) / 2));
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--auth-text);
-  color: #ffffff;
-  box-shadow: 0 1px 1px rgb(0 0 0 / 0.08);
-}
-
-.motion-auth-menu-close:hover {
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.12);
-  transform: translateY(-1px);
-}
-
-.motion-auth-menu-close:focus-visible {
-  box-shadow: 0 0 0 4px rgb(23 201 100 / 0.24);
 }
 
 .motion-auth-hero {
@@ -3050,25 +2929,14 @@ label {
 }
 
 .motion-auth-capability-band {
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 42px;
-  align-items: center;
+  display: block;
   border-top: 1px solid var(--auth-border);
   border-bottom: 1px solid var(--auth-border);
-  padding: 30px 0;
-}
-
-.motion-auth-capability-band > p {
-  max-width: 160px;
-  color: var(--auth-muted);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
+  padding: 7px 0;
 }
 
 .motion-auth-capability-marquee {
-  height: 30px;
+  height: 26px;
 }
 
 .motion-auth-capability-marquee .motion-auth-marquee-group {
@@ -3080,7 +2948,7 @@ label {
   color: var(--auth-text);
   font-size: 14px;
   font-weight: 700;
-  line-height: 30px;
+  line-height: 26px;
   white-space: nowrap;
 }
 
@@ -3168,10 +3036,6 @@ label {
     animation: line-pulse 5s ease-in-out infinite;
     animation-delay: var(--line-delay);
   }
-
-  .motion-auth-menu {
-    animation: motion-menu-enter 400ms ease both;
-  }
 }
 
 @keyframes marquee-left {
@@ -3204,16 +3068,6 @@ label {
   }
 }
 
-@keyframes motion-menu-enter {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
 @media (max-width: 1200px) {
   .motion-auth-navbar,
   .motion-auth-capability-band,
@@ -3230,13 +3084,112 @@ label {
     max-width: 680px;
     font-size: 72px;
   }
+}
 
-  .motion-auth-menu nav a {
-    font-size: 40px;
+@media (min-width: 811px) {
+  .motion-auth-page:not(.is-bootstrap) {
+    display: grid;
+    height: 100dvh;
+    min-height: 720px;
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    overflow: hidden;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-hero {
+    min-height: 0;
+    padding: 70px 36px 12px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-ticker {
+    height: 30px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-copy {
+    margin-top: 14px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-copy h1 {
+    max-width: 620px;
+    font-size: 58px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-copy p {
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-panel {
+    margin-top: 14px;
+    padding: 18px 20px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-panel .auth-form {
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-panel .auth-form input {
+    min-height: 40px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-panel .auth-submit {
+    min-height: 42px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-panel .auth-help {
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow {
+    padding: 12px 0 10px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow > h2 {
+    font-size: 24px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow-grid {
+    margin-top: 10px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow-grid article {
+    grid-template-columns: 34px 22px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 10px 12px 8px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow-number {
+    font-size: 24px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow-grid h3 {
+    font-size: 13px;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-workflow-grid p {
+    margin-top: 3px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-footer {
+    padding: 8px 0 10px;
+    font-size: 10px;
   }
 }
 
 @media (max-width: 810px) {
+  .motion-auth-page,
+  .motion-auth-page:not(.is-bootstrap) {
+    display: block;
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
   .motion-auth-navbar,
   .motion-auth-capability-band,
   .motion-auth-workflow,
@@ -3250,38 +3203,6 @@ label {
 
   .motion-auth-brand span {
     font-size: 24px;
-  }
-
-  .motion-auth-menu-button {
-    width: 42px;
-    padding: 0;
-  }
-
-  .motion-auth-menu-button span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-  }
-
-  .motion-auth-menu {
-    padding: 86px 20px 24px;
-  }
-
-  .motion-auth-menu-close {
-    top: 13px;
-    right: 20px;
-  }
-
-  .motion-auth-menu nav a {
-    font-size: 32px;
-  }
-
-  .motion-auth-menu footer {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 5px;
   }
 
   .motion-auth-hero {
@@ -3358,13 +3279,7 @@ label {
   }
 
   .motion-auth-capability-band {
-    grid-template-columns: 1fr;
-    gap: 16px;
     padding: 26px 0;
-  }
-
-  .motion-auth-capability-band > p {
-    max-width: none;
   }
 
   .motion-auth-workflow {
@@ -3441,8 +3356,7 @@ label {
 @media (prefers-reduced-motion: reduce) {
   .motion-auth-marquee-track,
   .motion-auth-lines-side span,
-  .motion-auth-lines-top span,
-  .motion-auth-menu {
+  .motion-auth-lines-top span {
     animation: none !important;
   }
 
