@@ -13,9 +13,9 @@ x-app-environment: &app-environment
 
 services:
   app:
-    image: docker.io/your-dockerhub-username/invoice-ocr-app:0.2.0
+    image: docker.io/nathan974/invoice-ocr-app:0.2.0
     container_name: invoice-ocr-app
-    command: ["web"]
+    command: ['web']
     environment:
       <<: *app-environment
       APP_SECRET_KEY: change-me-use-openssl-rand-hex-32
@@ -26,7 +26,7 @@ services:
         condition: service_healthy
     ports:
       # 只修改左侧的宿主机端口，容器端口保持 8080。
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       - app_uploads:/data/uploads
       - app_exports:/data/exports
@@ -37,7 +37,11 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/readyz', timeout=2)\""]
+      test:
+        [
+          'CMD-SHELL',
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8080/readyz'', timeout=2)"'
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -46,7 +50,7 @@ services:
   worker:
     image: docker.io/your-dockerhub-username/invoice-ocr-app:0.2.0
     container_name: invoice-ocr-worker
-    command: ["worker"]
+    command: ['worker']
     environment: *app-environment
     depends_on:
       app:
@@ -71,7 +75,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,12 +83,12 @@ services:
   redis:
     image: redis:7.2-bookworm
     container_name: invoice-ocr-redis
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis_data:/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
