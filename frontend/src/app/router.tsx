@@ -7,6 +7,7 @@ import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
 import { InvoiceListPage } from "../pages/InvoiceListPage";
 import { ProjectManagementPage } from "../pages/ProjectManagementPage";
 import { ReviewQueuePage } from "../pages/ReviewQueuePage";
+import { ExportRecordsPage } from "../pages/ExportRecordsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { UploadPage } from "../pages/UploadPage";
 import { UserManagementPage } from "../pages/UserManagementPage";
@@ -80,6 +81,9 @@ export function renderRoute(route: AppRoute) {
   }
   if (route.id === "review") {
     return <ReviewQueuePage />;
+  }
+  if (route.id === "exports") {
+    return <ExportRecordsPage />;
   }
   if (route.id === "projects") {
     return <ProjectManagementPage />;

@@ -1933,6 +1933,20 @@ label {
   gap: 7px;
 }
 
+.export-create { display: grid; gap: 18px; }
+.export-create h2 { margin-top: 6px; font-size: 22px; }
+.export-create p { margin-top: 8px; font-size: 14px; }
+.export-create-controls { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) auto; gap: 12px; align-items: end; }
+.export-create-controls .check-row { min-height: 40px; }
+.export-create-controls .button { min-height: 40px; gap: 7px; }
+.export-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.export-table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 13px; }
+.export-table th,.export-table td { border-bottom: 1px solid var(--line); padding: 12px 10px; text-align: left; vertical-align: middle; }
+.export-table tr:last-child td { border-bottom: 0; }
+.export-table th { background: var(--surface-muted); color: var(--ink-subtle); font-size: 12px; }
+.export-table td small { display:block; margin-top:4px; color:var(--critical); font-size:12px; }
+.export-table .button { gap: 7px; }
+
 .invoice-preview {
   position: sticky;
   top: 28px;
@@ -2429,6 +2443,9 @@ label {
   .review-table {
     min-width: 760px;
   }
+
+  .export-create-controls { grid-template-columns: 1fr; }
+  .export-table { min-width: 760px; }
 
   .provider-row,
   .upload-queue-row {
