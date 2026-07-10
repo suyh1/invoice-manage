@@ -63,12 +63,24 @@ describe("AuthLandingPage", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     expect(document.activeElement).toBe(links[0]);
     await user.tab({ shift: true });
-    expect(document.activeElement).toBe(links.at(-1));
+    expect(dialog.contains(document.activeElement)).toBe(true);
     await user.tab();
     expect(document.activeElement).toBe(links[0]);
 
     await user.keyboard("{Escape}");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("provides an explicit menu close control for pointer users", async () => {
+    const user = userEvent.setup();
+    render(<AuthLandingPage mode="login" busy={false} errorMessage={null} onBootstrap={noop} onLogin={noop} />);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+
+    await user.click(trigger);
+    await user.click(screen.getByRole("button", { name: "关闭菜单" }));
+
+    expect(screen.queryByRole("dialog", { name: "首页导航" })).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
 

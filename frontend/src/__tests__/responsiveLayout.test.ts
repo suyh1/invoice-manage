@@ -23,6 +23,10 @@ describe("responsive workspace layout", () => {
   });
 
   it("defines the approved motion authentication visual contract", () => {
+    const mobileAuthRules = styles.match(
+      /@media \(max-width: 810px\) \{([\s\S]*?)@media \(max-width: 440px\)/,
+    )?.[1];
+
     expect(styles).toContain(".motion-auth-page");
     expect(styles).toContain("backdrop-filter: blur(28px) saturate(140%);");
     expect(styles).toContain("@keyframes line-pulse");
@@ -31,5 +35,6 @@ describe("responsive workspace layout", () => {
     expect(styles).toContain("auth-motion-hero-mobile.webp");
     expect(styles).toContain("@media (max-width: 810px)");
     expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(mobileAuthRules).toMatch(/\.motion-auth-hero\s*\{[^}]*min-height:\s*780px;/);
   });
 });

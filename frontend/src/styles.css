@@ -2669,6 +2669,29 @@ label {
   font-size: 12px;
 }
 
+.motion-auth-menu-close {
+  position: absolute;
+  top: 17px;
+  right: max(36px, calc((100vw - 1200px) / 2));
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--auth-text);
+  color: #ffffff;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.08);
+}
+
+.motion-auth-menu-close:hover {
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.12);
+  transform: translateY(-1px);
+}
+
+.motion-auth-menu-close:focus-visible {
+  box-shadow: 0 0 0 4px rgb(23 201 100 / 0.24);
+}
+
 .motion-auth-hero {
   position: relative;
   display: grid;
@@ -3246,6 +3269,11 @@ label {
     padding: 86px 20px 24px;
   }
 
+  .motion-auth-menu-close {
+    top: 13px;
+    right: 20px;
+  }
+
   .motion-auth-menu nav a {
     font-size: 32px;
   }
@@ -3257,7 +3285,7 @@ label {
   }
 
   .motion-auth-hero {
-    min-height: 820px;
+    min-height: 780px;
     padding: 98px 16px 70px;
   }
 

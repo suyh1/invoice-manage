@@ -13,6 +13,7 @@ import {
   FolderTree,
   ScanLine,
   Upload,
+  X,
 } from "lucide-react";
 
 import { heroCapabilities, workflowCapabilities, workflowSteps } from "../../lib/authLanding";
@@ -212,6 +213,18 @@ function FullscreenMenu({
         <span>Invoice OCR</span>
         <span>发票识别、校对与项目归档</span>
       </footer>
+      <button
+        aria-label="关闭菜单"
+        className="motion-auth-menu-close"
+        onClick={() => {
+          triggerRef.current?.focus();
+          onClose();
+        }}
+        title="关闭菜单"
+        type="button"
+      >
+        <X aria-hidden="true" size={18} />
+      </button>
     </div>
   );
 }
