@@ -86,11 +86,12 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     return user
 
 
-def create_session_token(user_id: UUID) -> str:
+def create_session_token(user_id: UUID, session_version: int = 1) -> str:
     expires_at = datetime.now(UTC) + timedelta(seconds=SESSION_TTL_SECONDS)
     payload = {
         "sub": str(user_id),
         "exp": int(expires_at.timestamp()),
+        "ver": session_version,
     }
     payload_text = base64.urlsafe_b64encode(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -107,7 +108,17 @@ def load_user_from_session_token(db: Session, token: str) -> User | None:
         user_id = UUID(str(payload["sub"]))
     except (KeyError, ValueError):
         return None
-    return db.get(User, user_id)
+    user = db.get(User, user_id)
+    if user is None or payload.get("ver") != user.session_version:
+        return None
+    return user
+
+
+def change_password(user: User, current_password: str, new_password: str) -> None:
+    if not verify_password(current_password, user.password_hash):
+        raise ValueError("current password is invalid")
+    user.password_hash = hash_password(new_password)
+    user.session_version = (user.session_version or 1) + 1
 
 
 def decode_session_token(token: str) -> dict[str, Any] | None:

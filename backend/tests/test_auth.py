@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import assert_invoice_access, require_role
 from app.cli import main as cli_main
+from app.db.base import Base, import_all_models
 from app.db.session import get_db
 from app.domain.user.models import AuditLog, User, UserRole, UserStatus
 from app.domain.user.service import create_user, verify_password
@@ -22,8 +23,8 @@ def db_session() -> Session:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    User.__table__.create(engine)
-    AuditLog.__table__.create(engine)
+    import_all_models()
+    Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with SessionLocal() as session:
         yield session
@@ -129,6 +130,102 @@ def test_login_rejects_wrong_password_and_disabled_users(client: TestClient, db_
     assert wrong_password.json()["error"]["code"] == "AUTH_INVALID_CREDENTIALS"
     assert disabled.status_code == 403
     assert disabled.json()["error"]["code"] == "AUTH_USER_DISABLED"
+
+
+def test_bootstrap_creates_only_first_administrator(client: TestClient, db_session: Session) -> None:
+    status_before = client.get("/api/v1/auth/bootstrap-status")
+
+    assert status_before.status_code == 200
+    assert status_before.json()["data"] == {"initialized": False}
+
+    created = client.post(
+        "/api/v1/auth/bootstrap",
+        json={
+            "email": "Owner@Example.com",
+            "password": "strong-password-123",
+            "display_name": "Workspace Owner",
+        },
+    )
+
+    assert created.status_code == 200
+    assert created.json()["data"]["email"] == "owner@example.com"
+    assert created.json()["data"]["role"] == "admin"
+    assert client.get("/api/v1/auth/me").status_code == 200
+    assert client.get("/api/v1/auth/bootstrap-status").json()["data"] == {"initialized": True}
+    saved = db_session.query(User).one()
+    assert saved.role == UserRole.admin
+
+    duplicate = client.post(
+        "/api/v1/auth/bootstrap",
+        json={
+            "email": "second@example.com",
+            "password": "another-strong-password",
+            "display_name": "Second Owner",
+        },
+    )
+
+    assert duplicate.status_code == 409
+    assert duplicate.json()["error"]["code"] == "AUTH_BOOTSTRAP_COMPLETE"
+    assert db_session.query(User).count() == 1
+
+
+def test_existing_user_marks_system_as_initialized(client: TestClient, db_session: Session) -> None:
+    create_user(
+        db_session,
+        email="existing@example.com",
+        password="existing-password",
+        display_name="Existing",
+        role=UserRole.admin,
+    )
+    db_session.commit()
+
+    response = client.get("/api/v1/auth/bootstrap-status")
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {"initialized": True}
+
+
+def test_password_change_invalidates_previous_session(client: TestClient, db_session: Session) -> None:
+    user = create_user(
+        db_session,
+        email="member@example.com",
+        password="old-password-123",
+        display_name="Member",
+        role=UserRole.user,
+    )
+    db_session.commit()
+    assert user.session_version == 1
+
+    login_response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "member@example.com", "password": "old-password-123"},
+    )
+    old_session = client.cookies.get("session")
+    assert login_response.status_code == 200
+    assert old_session
+
+    changed = client.patch(
+        "/api/v1/auth/password",
+        json={"current_password": "old-password-123", "new_password": "new-password-456"},
+    )
+
+    assert changed.status_code == 200
+    assert changed.json()["data"] == {"ok": True}
+    db_session.refresh(user)
+    assert user.session_version == 2
+    assert client.cookies.get("session") != old_session
+    assert client.get("/api/v1/auth/me").status_code == 200
+
+    client.cookies.set("session", old_session)
+    assert client.get("/api/v1/auth/me").status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": "member@example.com", "password": "old-password-123"},
+    ).status_code == 401
+    assert client.post(
+        "/api/v1/auth/login",
+        json={"email": "member@example.com", "password": "new-password-456"},
+    ).status_code == 200
 
 
 def test_role_dependency_allows_required_roles() -> None:

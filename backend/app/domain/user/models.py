@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, JSON_VARIANT, TimestampMixin
@@ -38,6 +38,7 @@ class User(Base, TimestampMixin):
         default=UserStatus.active,
         nullable=False,
     )
+    session_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     uploaded_documents = relationship("InvoiceDocument", back_populates="uploaded_by_user")
     configured_ocr_providers = relationship(
