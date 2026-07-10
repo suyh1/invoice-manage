@@ -2,11 +2,15 @@ import type { PropsWithChildren } from "react";
 
 import { appRoutes, type AppRoute } from "../app/router";
 import { useAuth } from "../auth/AuthContext";
+import { visibleNavigationIds } from "../lib/permissions";
 import { OcrQuotaStatus } from "./OcrQuotaStatus";
 import { UserMenu } from "./UserMenu";
 
 export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRoute: AppRoute }>) {
   const auth = useAuth();
+  const visibleRoutes = appRoutes.filter((route) =>
+    auth.user ? visibleNavigationIds(auth.user.role).includes(route.id) : false,
+  );
 
   return (
     <main className="app-shell">
@@ -22,7 +26,7 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
         </a>
 
         <nav className="nav-list">
-          {appRoutes.map((route) => (
+          {visibleRoutes.map((route) => (
             <a className={route.id === activeRoute.id ? "active" : ""} href={route.path} key={route.id}>
               <span>{route.label}</span>
               {route.badge ? <em>{route.badge}</em> : null}

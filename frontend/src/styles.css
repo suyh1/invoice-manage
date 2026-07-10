@@ -56,14 +56,16 @@ body {
 body,
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
 button,
 a,
 input,
-select {
+select,
+textarea {
   transition:
     border-color 160ms ease,
     background-color 160ms ease,
@@ -91,7 +93,8 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 40px;
   border: 1px solid var(--line);
@@ -101,17 +104,23 @@ select {
   padding: 9px 11px;
 }
 
+textarea {
+  resize: vertical;
+}
+
 input::placeholder {
   color: oklch(0.48 0.025 215);
 }
 
 input:hover,
-select:hover {
+select:hover,
+textarea:hover {
   border-color: var(--line-strong);
 }
 
 input:focus,
 select:focus,
+textarea:focus,
 button:focus-visible,
 a:focus-visible {
   outline: none;
@@ -813,6 +822,236 @@ p {
 
 .account-dialog-actions .button {
   gap: 7px;
+}
+
+.management-page {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
+.management-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.management-toolbar h2 {
+  margin-top: 6px;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.management-toolbar p {
+  max-width: 68ch;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.management-toolbar > .button,
+.management-toolbar .button,
+.management-table .button {
+  gap: 7px;
+}
+
+.management-page-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.management-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.management-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.management-table th,
+.management-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 13px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.management-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.management-table th {
+  background: var(--surface-muted);
+  color: var(--ink-subtle);
+  font-size: 12px;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+.management-table td {
+  color: var(--ink-muted);
+}
+
+.management-table td strong,
+.management-table td > span:not(.status-token) {
+  display: block;
+}
+
+.management-table td strong {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.management-table td > span:not(.status-token) {
+  margin-top: 3px;
+  color: var(--ink-subtle);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.management-table .row-actions {
+  flex-wrap: nowrap;
+}
+
+.management-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0;
+}
+
+.management-dialog::backdrop {
+  background: rgb(17 24 26 / 0.42);
+}
+
+.management-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--line);
+  padding: 20px;
+}
+
+.management-dialog-heading h2 {
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.management-dialog-heading p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.management-dialog-message {
+  margin: 16px 20px 0;
+}
+
+.management-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.management-form textarea {
+  min-height: 104px;
+}
+
+.management-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+
+.management-dialog-actions .button {
+  gap: 7px;
+}
+
+.management-loading {
+  min-height: 180px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink-muted);
+  padding: 28px;
+}
+
+.project-groups {
+  display: grid;
+  gap: 28px;
+}
+
+.project-group {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 16px;
+}
+
+.project-group-heading {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.project-group-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.project-group-heading h3 {
+  color: var(--ink);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.project-group-heading p {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.project-group-empty {
+  min-height: 74px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-muted);
+  padding: 24px;
+  font-size: 13px;
+}
+
+.project-table {
+  min-width: 820px;
+}
+
+.management-muted {
+  color: var(--ink-subtle);
+  font-size: 12px;
 }
 
 .section-label {
@@ -1881,6 +2120,47 @@ label {
   .account-dialog-actions {
     align-items: stretch;
     flex-direction: column-reverse;
+  }
+
+  .management-toolbar,
+  .management-page-message {
+    display: grid;
+  }
+
+  .management-toolbar > .button,
+  .management-page-message .button {
+    width: 100%;
+  }
+
+  .management-table {
+    min-width: 760px;
+  }
+
+  .management-dialog-heading,
+  .management-form {
+    padding: 16px;
+  }
+
+  .management-dialog-message {
+    margin: 14px 16px 0;
+  }
+
+  .management-dialog-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .management-dialog-actions .button {
+    width: 100%;
+  }
+
+  .project-group-heading {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .project-group-heading > .status-token {
+    grid-column: 2;
+    width: fit-content;
   }
 
   .account-dialog-actions .button {

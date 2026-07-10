@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 
+import type { UserRole } from "../auth/authState";
+import { visibleNavigationIds } from "../lib/permissions";
 import { DashboardPage } from "../pages/DashboardPage";
 import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
 import { InvoiceListPage } from "../pages/InvoiceListPage";
+import { ProjectManagementPage } from "../pages/ProjectManagementPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { UploadPage } from "../pages/UploadPage";
+import { UserManagementPage } from "../pages/UserManagementPage";
 
-export type AppRouteId = "dashboard" | "invoices" | "upload" | "review" | "exports" | "settings";
+export type AppRouteId =
+  | "dashboard"
+  | "invoices"
+  | "upload"
+  | "review"
+  | "exports"
+  | "projects"
+  | "users"
+  | "settings";
 
 export type AppRoute = {
   id: AppRouteId;
@@ -24,10 +36,12 @@ export const appRoutes: AppRoute[] = [
   { id: "upload", label: "上传识别", path: "#/upload" },
   { id: "review", label: "待校对", path: "#/review", badge: "0" },
   { id: "exports", label: "导出记录", path: "#/exports" },
+  { id: "projects", label: "项目", path: "#/projects" },
+  { id: "users", label: "用户管理", path: "#/users" },
   { id: "settings", label: "设置", path: "#/settings" },
 ];
 
-export function useHashRoute() {
+export function useHashRoute(role: UserRole | null) {
   const [hash, setHash] = useState(() => window.location.hash || "#/");
 
   useEffect(() => {
@@ -37,11 +51,14 @@ export function useHashRoute() {
   }, []);
 
   return useMemo(() => {
+    const visibleIds = new Set(role ? visibleNavigationIds(role) : []);
     if (hash.startsWith("#/invoices/")) {
-      return { ...appRoutes[1], label: "发票详情", params: { invoiceId: hash.replace("#/invoices/", "") } };
+      return visibleIds.has("invoices")
+        ? { ...appRoutes[1], label: "发票详情", params: { invoiceId: hash.replace("#/invoices/", "") } }
+        : appRoutes[0];
     }
-    return appRoutes.find((route) => route.path === hash) ?? appRoutes[0];
-  }, [hash]);
+    return appRoutes.find((route) => route.path === hash && visibleIds.has(route.id)) ?? appRoutes[0];
+  }, [hash, role]);
 }
 
 export function renderRoute(route: AppRoute) {
@@ -60,6 +77,12 @@ export function renderRoute(route: AppRoute) {
   if (route.id === "upload") {
     return <UploadPage />;
   }
+  if (route.id === "projects") {
+    return <ProjectManagementPage />;
+  }
+  if (route.id === "users") {
+    return <UserManagementPage />;
+  }
   return <PlaceholderPage route={route} />;
 }
 
@@ -70,6 +93,8 @@ function PlaceholderPage({ route }: { route: AppRoute }) {
     upload: "批量上传、预校验和 OCR 队列将在上传工作流任务中接入。",
     review: "字段缺失、重复疑似和低置信度聚合将在校对任务中接入。",
     exports: "导出任务列表和下载状态将在导出页面任务中接入。",
+    projects: "",
+    users: "",
     settings: "",
   };
 

@@ -5,8 +5,8 @@ import { AuthLandingPage, AuthStatusPage } from "../pages/AuthLandingPage";
 import { renderRoute, useHashRoute } from "./router";
 
 export function App() {
-  const activeRoute = useHashRoute();
   const auth = useAuth();
+  const activeRoute = useHashRoute(auth.user?.role ?? null);
 
   if (auth.loadFailed) {
     return <AuthStatusPage mode="error" onRetry={auth.refresh} />;
