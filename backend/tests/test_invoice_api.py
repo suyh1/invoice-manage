@@ -56,6 +56,7 @@ def seed_invoice(
     is_duplicate_suspected: bool = False,
     project: Project | None = None,
 ) -> Invoice:
+    project = project or ProjectService().ensure_uncategorized(session)
     provider = OcrProviderConfig(
         provider="tencent",
         display_name="Tencent OCR",
@@ -78,8 +79,7 @@ def seed_invoice(
         status=DocumentStatus.ocr_done,
         created_at=datetime(2026, 7, 9, 9, 0, tzinfo=UTC),
     )
-    if project is not None:
-        document.project = project
+    document.project = project
     job = OcrJob(
         document=document,
         provider_config=provider,

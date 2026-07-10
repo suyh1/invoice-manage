@@ -24,7 +24,7 @@ class InvoiceDocument(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     workspace_id: Mapped[UUID | None]
-    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="RESTRICT"))
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False)
     uploaded_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -52,6 +52,7 @@ class InvoiceDocument(Base):
 
     __table_args__ = (
         Index("ix_invoice_documents_uploaded_by_created_at", "uploaded_by", "created_at"),
+        Index("ix_invoice_documents_project_id_created_at", "project_id", "created_at"),
         Index("ix_invoice_documents_sha256", "sha256"),
         Index("ix_invoice_documents_status_created_at", "status", "created_at"),
     )

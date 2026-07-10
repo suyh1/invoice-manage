@@ -14,6 +14,7 @@ from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.client import OcrRecognitionResult
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderUsageDaily
 from app.domain.ocr.provider_config import OcrProviderConfigService
+from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_user
 from app.workers.tasks import process_ocr_job
@@ -68,6 +69,7 @@ def seed_ocr_job(session: Session, storage_root: Path, *, attempt_count: int = 0
     (storage_root / "2026" / "07").mkdir(parents=True)
     (storage_root / storage_key).write_bytes(b"invoice-image-bytes")
     document = InvoiceDocument(
+        project=ProjectService().ensure_uncategorized(session),
         uploaded_by=actor.id,
         original_filename="invoice.png",
         content_type="image/png",

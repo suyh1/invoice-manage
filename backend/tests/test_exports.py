@@ -57,6 +57,7 @@ def seed_invoice(
     project: Project | None = None,
     invoice_number: str = "12876543",
 ) -> Invoice:
+    project = project or ProjectService().ensure_uncategorized(session)
     provider = OcrProviderConfig(
         provider="tencent",
         display_name="Tencent OCR",

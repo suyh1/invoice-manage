@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.duplicate import detect_duplicates_for_invoice
 from app.domain.invoice.models import DuplicateCheck, DuplicateCheckStatus, Invoice, InvoiceStatus
+from app.domain.project.service import ProjectService
 from app.domain.user.models import UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
@@ -50,6 +51,7 @@ def seed_invoice(
     status: InvoiceStatus = InvoiceStatus.needs_review,
 ) -> Invoice:
     document = InvoiceDocument(
+        project=ProjectService().ensure_uncategorized(session),
         uploaded_by=user.id,
         original_filename=f"{invoice_number}.png",
         content_type="image/png",
