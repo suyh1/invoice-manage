@@ -10,6 +10,7 @@ from urllib.parse import urlsplit, urlunsplit
 from cryptography.fernet import Fernet, InvalidToken
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine import URL
 
 
 SENSITIVE_KEY_PARTS = (
@@ -79,12 +80,13 @@ class Settings(BaseSettings):
     app_secret_key: str = Field(default="dev-secret-change-me", validation_alias="APP_SECRET_KEY")
     session_cookie_secure: bool = Field(default=False, validation_alias="SESSION_COOKIE_SECURE")
     session_cookie_samesite: str = Field(default="Lax", validation_alias="SESSION_COOKIE_SAMESITE")
-    trusted_proxies: str = Field(default="127.0.0.1", validation_alias="TRUSTED_PROXIES")
 
-    database_url: str = Field(
-        default="postgresql+psycopg://invoice_app:change-me@postgres:5432/invoice_app",
-        validation_alias="DATABASE_URL",
-    )
+    database_url_override: str | None = Field(default=None, validation_alias="DATABASE_URL")
+    postgres_host: str = Field(default="postgres", validation_alias="POSTGRES_HOST")
+    postgres_port: int = Field(default=5432, validation_alias="POSTGRES_PORT")
+    postgres_db: str = Field(default="invoice_app", validation_alias="POSTGRES_DB")
+    postgres_user: str = Field(default="invoice_app", validation_alias="POSTGRES_USER")
+    postgres_password: str = Field(default="change-me", validation_alias="POSTGRES_PASSWORD")
     redis_url: str = Field(default="redis://redis:6379/0", validation_alias="REDIS_URL")
 
     storage_path: Path = Field(default=Path("/data/uploads"), validation_alias="STORAGE_PATH")
@@ -99,6 +101,19 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    @property
+    def database_url(self) -> str:
+        if self.database_url_override:
+            return self.database_url_override
+        return URL.create(
+            drivername="postgresql+psycopg",
+            username=self.postgres_user,
+            password=self.postgres_password,
+            host=self.postgres_host,
+            port=self.postgres_port,
+            database=self.postgres_db,
+        ).render_as_string(hide_password=False)
+
     def safe_dict(self) -> dict[str, Any]:
         """Return settings that can be exposed in diagnostics without secrets."""
 
@@ -108,7 +123,6 @@ class Settings(BaseSettings):
             "app_port": self.app_port,
             "session_cookie_secure": self.session_cookie_secure,
             "session_cookie_samesite": self.session_cookie_samesite,
-            "trusted_proxies": self.trusted_proxies,
             "database_url": redact_url_password(self.database_url),
             "redis_url": redact_url_password(self.redis_url),
             "storage_path": str(self.storage_path),

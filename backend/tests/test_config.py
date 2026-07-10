@@ -41,6 +41,39 @@ def test_safe_settings_dump_excludes_application_secrets() -> None:
     assert safe_dump["database_url"] == "postgresql+psycopg://invoice:***@postgres:5432/app"
 
 
+def test_settings_build_database_url_from_postgres_fields() -> None:
+    settings = Settings(
+        _env_file=None,
+        POSTGRES_HOST="db.internal",
+        POSTGRES_PORT="5544",
+        POSTGRES_DB="invoice_app",
+        POSTGRES_USER="invoice_user",
+        POSTGRES_PASSWORD="p@ss:/word",
+    )
+
+    assert settings.database_url == (
+        "postgresql+psycopg://invoice_user:p%40ss%3A%2Fword@db.internal:5544/invoice_app"
+    )
+
+
+def test_database_url_override_takes_precedence_over_postgres_fields() -> None:
+    override = "postgresql+psycopg://override:secret@database:5432/override_db"
+    settings = Settings(
+        _env_file=None,
+        DATABASE_URL=override,
+        POSTGRES_PASSWORD="ignored",
+    )
+
+    assert settings.database_url == override
+
+
+def test_unused_trusted_proxies_setting_is_not_exposed() -> None:
+    settings = Settings(_env_file=None, TRUSTED_PROXIES="0.0.0.0/0")
+
+    assert "trusted_proxies" not in Settings.model_fields
+    assert "trusted_proxies" not in settings.safe_dict()
+
+
 def test_credential_cipher_encrypts_and_decrypts_payload_without_plaintext() -> None:
     cipher = CredentialCipher("unit-test-encryption-key-with-enough-entropy")
     credential = {"secret_id": "AKIDEXAMPLE", "secret_key": "very-sensitive-key"}
