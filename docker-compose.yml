@@ -2,7 +2,7 @@ name: invoice-ocr
 
 services:
   app:
-    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.1.0}
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     platform: linux/amd64
     command: ["web"]
     env_file:
@@ -32,7 +32,7 @@ services:
       start_period: 20s
 
   worker:
-    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.1.0}
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     platform: linux/amd64
     command: ["worker"]
     env_file:

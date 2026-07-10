@@ -9,18 +9,24 @@ cleanup() {
   docker compose -f "${COMPOSE_FILE}" down -v --remove-orphans >/dev/null 2>&1 || true
 }
 
+wait_for_app() {
+  for _ in $(seq 1 40); do
+    if curl -fsS http://localhost:18090/healthz >/dev/null \
+      && curl -fsS http://localhost:18090/readyz >/dev/null; then
+      return
+    fi
+    sleep 1
+  done
+  curl -fsS http://localhost:18090/healthz >/dev/null
+  curl -fsS http://localhost:18090/readyz >/dev/null
+}
+
 trap cleanup EXIT
 
 docker compose -f "${COMPOSE_FILE}" down -v --remove-orphans
 docker compose -f "${COMPOSE_FILE}" up --build --abort-on-container-exit --exit-code-from e2e
 
 docker compose -f "${COMPOSE_FILE}" up -d app worker
-for _ in $(seq 1 40); do
-  if curl -fsS http://localhost:18090/healthz >/dev/null; then
-    break
-  fi
-  sleep 1
-done
-curl -fsS http://localhost:18090/healthz >/dev/null
+wait_for_app
 
 docker compose -f "${COMPOSE_FILE}" run --rm -e E2E_PHASE=persistence e2e

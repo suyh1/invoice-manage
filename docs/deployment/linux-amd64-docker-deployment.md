@@ -1,10 +1,10 @@
 # Linux x86_64 Docker 部署指南
 
-版本：v0.1
+版本：v0.2
 
-日期：2026-07-09
+日期：2026-07-10
 
-本文档描述项目实现完成后的标准部署方式。后续代码必须按本文档交付可执行配置。
+本文档描述已实现系统的标准部署、首次初始化和升级方式。
 
 ## 1. 部署目标
 
@@ -98,25 +98,31 @@ chmod 600 .env
 
 ## 5. 镜像构建
 
-后续实现必须支持：
+构建发布镜像：
 
 ```bash
 docker buildx build \
   --platform linux/amd64 \
-  -t invoice-ocr-app:0.1.0 \
+  --load \
+  -t invoice-ocr-app:0.2.0 \
   .
+
+docker inspect invoice-ocr-app:0.2.0 \
+  --format '{{.Config.User}} {{.Architecture}}'
 ```
 
 发布时使用不可变 tag，不使用 `latest` 作为生产部署版本。
 
+镜像检查预期输出为 `invoice amd64`。如果构建机是 Apple Silicon，仍必须保留 `--platform linux/amd64`。
+
 ## 6. Compose 参考结构
 
-实现完成后，`docker-compose.yml` 应等价于：
+仓库中的 `docker-compose.yml` 使用 `INVOICE_OCR_IMAGE` 选择版本，结构等价于：
 
 ```yaml
 services:
   app:
-    image: invoice-ocr-app:0.1.0
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     command: ["web"]
     env_file: .env
     depends_on:
@@ -136,13 +142,13 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/readyz', timeout=2)\""]
       interval: 30s
       timeout: 5s
       retries: 3
 
   worker:
-    image: invoice-ocr-app:0.1.0
+    image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
     command: ["worker"]
     env_file: .env
     depends_on:
@@ -197,24 +203,41 @@ volumes:
 
 ## 7. 首次启动
 
-实现完成后，首次启动流程：
+首次启动流程：
 
 ```bash
 cp .env.example .env
 vim .env
 chmod 600 .env
-docker compose pull
+export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
+docker compose run --rm app migrate
 docker compose up -d
-docker compose logs -f app worker
+docker compose ps
 ```
 
-初始化管理员：
+健康检查：
 
 ```bash
-docker compose exec app invoice-app create-admin \
-  --email admin@example.com \
-  --password 'change-me'
+curl -fsS http://localhost:8080/healthz
+curl -fsS http://localhost:8080/readyz
 ```
+
+然后打开 `http://<服务器地址>:8080` 或 HTTPS 域名：
+
+1. 新数据库会显示初始化落地页。
+2. 创建第一位用户，该用户自动成为管理员并立即登录。
+3. 首位用户创建后，公开初始化永久关闭。
+4. 后续账号由管理员在“用户管理”创建，默认角色为普通用户。
+
+CLI `invoice-app create-admin` 仅用于网页不可用时的运维恢复，不是正常首次初始化步骤。CLI 创建用户后，浏览器初始化也会关闭。
+
+### 7.1 用户与项目初始化
+
+- 普通用户：只能查看自己的发票，可创建自己的私有项目，并可使用共享项目。
+- 财务：可查看全部发票，可创建私有或共享项目，处理跨用户校对与导出。
+- 管理员：拥有财务能力，并可管理用户、角色、状态、密码重置和 OCR 设置。
+- 系统自动提供不可修改的“未分类”项目。
+- 上传时未选择项目的发票自动进入“未分类”。
 
 首次配置 OCR：
 
@@ -226,14 +249,9 @@ docker compose exec app invoice-app create-admin \
 6. 填写免费额度或资源包总量、已用量、重置日和提醒阈值。
 7. 点击连接测试，成功后设为默认启用运营商。
 
-健康检查：
-
-```bash
-curl -fsS http://localhost:8080/healthz
-curl -fsS http://localhost:8080/readyz
-```
-
 OCR 连接测试应在管理员设置页手动触发，不应由健康检查自动调用真实 OCR。
+
+首次配置完成后，上传一张测试发票，确认它经过 OCR 后进入“待校对”；修正字段或明细行并确认，再按项目创建导出并下载文件。
 
 ## 8. HTTPS 反向代理
 
@@ -346,10 +364,21 @@ docker compose down
 升级：
 
 ```bash
-docker compose pull
-docker compose run --rm app invoice-app migrate
+export INVOICE_OCR_IMAGE=invoice-ocr-app:0.2.0
+docker compose run --rm app migrate
 docker compose up -d
+curl -fsS http://localhost:8080/readyz
 ```
+
+迁移必须在新版本服务启动前执行。上述命令会复用现有命名 volumes，不会删除 PostgreSQL、上传原件或导出文件。不要在升级流程中执行 `docker compose down -v`。
+
+升级后检查：
+
+1. 管理员和普通用户可以登录，权限菜单正确。
+2. “未分类”、共享项目和私有项目仍存在，发票项目归属正确。
+3. 待校对队列可保存明细修改并完成确认。
+4. 按项目筛选的导出可创建和下载。
+5. 重启 `app` 与 `worker` 后，上述数据仍可读取。
 
 回滚：
 

@@ -16,7 +16,7 @@ jobs:
           enable-cache: true
       - name: Run backend tests
         working-directory: backend
-        run: uv run --extra test pytest -v
+        run: uv run --frozen --extra test pytest -v
 
   frontend:
     runs-on: ubuntu-24.04
@@ -32,7 +32,7 @@ jobs:
         run: npm ci
       - name: Run frontend tests
         working-directory: frontend
-        run: npm test -- fileValidation
+        run: npm test
       - name: Build frontend
         working-directory: frontend
         run: npm run build
