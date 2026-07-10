@@ -51,11 +51,17 @@ describe("responsive workspace layout", () => {
 
   it("keeps short desktop authentication viewports within one screen", () => {
     const shortDesktopRules = styles.match(
-      /@media \(min-width: 811px\) and \(max-height: 719px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
+      /@media \(min-width: 811px\) and \(max-height: 719px\) \{([\s\S]*?)(?=@media \(min-width: 811px\) and \(max-height: 559px\)|@media \(max-width: 810px\))/,
     )?.[1] ?? "";
     const shortDesktopAuthPageRule = shortDesktopRules.match(
       /\.motion-auth-page:not\(\.is-bootstrap\)\s*\{([^}]*)\}/,
     )?.[1] ?? "";
+    const shortStatusPanelRule = shortDesktopRules.match(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel\.auth-status-panel\s*\{([^}]*)\}/,
+    )?.[1] ?? "";
+    const shortStatusPanelMinHeight = Number(
+      shortStatusPanelRule.match(/min-height:\s*(\d+)px;/)?.[1] ?? Number.POSITIVE_INFINITY,
+    );
 
     expect(shortDesktopAuthPageRule).toContain("height: 100dvh;");
     expect(shortDesktopAuthPageRule).toContain("min-height: 0;");
@@ -72,11 +78,30 @@ describe("responsive workspace layout", () => {
     expect(shortDesktopRules).toMatch(
       /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel \.auth-form input\s*\{[^}]*min-height:/,
     );
+    expect(shortStatusPanelMinHeight).toBeLessThan(270);
+    expect(shortDesktopRules).toMatch(
+      /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-panel \.auth-alert\s*\{[^}]*margin-top:[^}]*padding:[^}]*font-size:[^}]*line-height:/,
+    );
     expect(shortDesktopRules).toMatch(
       /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-workflow\s*\{[^}]*padding:/,
     );
     expect(shortDesktopRules).toMatch(
       /\.motion-auth-page:not\(\.is-bootstrap\) \.motion-auth-footer\s*\{[^}]*padding:/,
     );
+  });
+
+  it("keeps authentication accessible in ultra-short desktop viewports", () => {
+    const ultraShortDesktopRules = styles.match(
+      /@media \(min-width: 811px\) and \(max-height: 559px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
+    )?.[1] ?? "";
+    const ultraShortAuthPageRule = ultraShortDesktopRules.match(
+      /\.motion-auth-page:not\(\.is-bootstrap\)\s*\{([^}]*)\}/,
+    )?.[1] ?? "";
+
+    expect(ultraShortAuthPageRule).toContain("display: block;");
+    expect(ultraShortAuthPageRule).toContain("height: auto;");
+    expect(ultraShortAuthPageRule).toContain("min-height: 100dvh;");
+    expect(ultraShortAuthPageRule).toContain("overflow-x: clip;");
+    expect(ultraShortAuthPageRule).toContain("overflow-y: visible;");
   });
 });
