@@ -52,7 +52,7 @@ describe("responsive workspace layout", () => {
 
   it("keeps short desktop authentication viewports within one screen", () => {
     const shortDesktopRules = styles.match(
-      /@media \(min-width: 811px\) and \(max-height: 899px\) \{([\s\S]*?)(?=@media \(min-width: 811px\) and \(max-height: 559px\)|@media \(max-width: 810px\))/,
+      /@media \(min-width: 811px\) and \(max-height: 899px\),\s*\(min-width: 811px\) and \(max-width: 1200px\) and \(max-height: 959px\) \{([\s\S]*?)(?=@media \(min-width: 811px\) and \(max-height: 559px\)|@media \(max-width: 810px\))/,
     )?.[1] ?? "";
     const shortDesktopAuthPageRule = shortDesktopRules.match(
       /\.motion-auth-page:not\(\.is-bootstrap\)\s*\{([^}]*)\}/,
