@@ -3,7 +3,6 @@ name: invoice-ocr
 services:
   app:
     image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
-    platform: linux/amd64
     command: ["web"]
     env_file:
       - path: .env
@@ -33,7 +32,6 @@ services:
 
   worker:
     image: ${INVOICE_OCR_IMAGE:-invoice-ocr-app:0.2.0}
-    platform: linux/amd64
     command: ["worker"]
     env_file:
       - path: .env
