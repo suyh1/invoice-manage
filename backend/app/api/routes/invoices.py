@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -22,6 +22,7 @@ duplicate_router = APIRouter(prefix="/api/v1/duplicate-checks", tags=["duplicate
 
 
 class InvoicePatchPayload(BaseModel):
+    project_id: UUID | None = None
     invoice_type: str | None = None
     invoice_code: str | None = None
     invoice_number: str | None = None
@@ -35,6 +36,22 @@ class InvoicePatchPayload(BaseModel):
     amount_with_tax: str | None = None
     check_code: str | None = None
     expense_scene: str | None = None
+
+
+class InvoiceItemPayload(BaseModel):
+    id: UUID | None = None
+    name: str | None = None
+    specification: str | None = None
+    unit: str | None = None
+    quantity: str | None = None
+    unit_price: str | None = None
+    amount: str | None = None
+    tax_rate: str | None = None
+    tax_amount: str | None = None
+
+
+class InvoiceItemsPayload(BaseModel):
+    items: list[InvoiceItemPayload] = Field(max_length=500)
 
 
 @router.get("")
@@ -53,6 +70,8 @@ def list_invoices(
     scene: str | None = None,
     file_type: str | None = None,
     duplicate: str | None = None,
+    project_id: UUID | None = None,
+    uploaded_by: UUID | None = None,
     q: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -72,6 +91,8 @@ def list_invoices(
         "scene": scene,
         "file_type": file_type,
         "duplicate": duplicate,
+        "project_id": project_id,
+        "uploaded_by": uploaded_by,
         "q": q,
     }
     return {"data": InvoiceService().list_invoices(db, current_user, filters)}
@@ -111,6 +132,35 @@ def update_invoice(
         )
     db.commit()
     db.refresh(updated)
+    return {"data": serialize_invoice_detail(updated)}
+
+
+@router.put("/{invoice_id}/items")
+def replace_invoice_items(
+    invoice_id: UUID,
+    payload: InvoiceItemsPayload,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    service = InvoiceService()
+    invoice = service.get_invoice(db, invoice_id, current_user)
+    updated = service.replace_items(
+        db,
+        invoice,
+        [item.model_dump(exclude={"id"}) for item in payload.items],
+        current_user,
+    )
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="invoice.items_update",
+        resource_type="invoice",
+        resource_id=updated.id,
+        metadata={"item_count": len(payload.items)},
+        request=request,
+    )
+    db.commit()
     return {"data": serialize_invoice_detail(updated)}
 
 

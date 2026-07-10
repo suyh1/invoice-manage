@@ -24,6 +24,7 @@ class InvoiceDocument(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     workspace_id: Mapped[UUID | None]
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id", ondelete="RESTRICT"))
     uploaded_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
@@ -35,6 +36,7 @@ class InvoiceDocument(Base):
     page_count: Mapped[int | None]
     image_width: Mapped[int | None]
     image_height: Mapped[int | None]
+    expense_scene: Mapped[str | None] = mapped_column(String(80))
     status: Mapped[DocumentStatus] = mapped_column(
         Enum(DocumentStatus, name="document_status", native_enum=False, create_constraint=True),
         default=DocumentStatus.uploaded,
@@ -44,6 +46,7 @@ class InvoiceDocument(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     uploaded_by_user = relationship("User", back_populates="uploaded_documents")
+    project = relationship("Project", back_populates="documents")
     ocr_jobs = relationship("OcrJob", back_populates="document")
     invoice = relationship("Invoice", back_populates="document", uselist=False)
 

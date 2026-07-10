@@ -11,6 +11,8 @@ from app.db.session import get_db
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceCorrection, InvoiceItem, InvoiceStatus
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, QuotaSource
+from app.domain.project.models import Project
+from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
@@ -52,6 +54,7 @@ def seed_invoice(
     invoice_date: date = date(2026, 7, 9),
     amount_with_tax: Decimal = Decimal("729.28"),
     is_duplicate_suspected: bool = False,
+    project: Project | None = None,
 ) -> Invoice:
     provider = OcrProviderConfig(
         provider="tencent",
@@ -75,6 +78,8 @@ def seed_invoice(
         status=DocumentStatus.ocr_done,
         created_at=datetime(2026, 7, 9, 9, 0, tzinfo=UTC),
     )
+    if project is not None:
+        document.project = project
     job = OcrJob(
         document=document,
         provider_config=provider,
@@ -277,3 +282,94 @@ def test_invoice_api_denies_normal_user_access_to_other_users_invoice() -> None:
         client.cookies.set("session", create_session_token(finance.id))
         allowed = client.get(f"/api/v1/invoices/{invoice.id}")
         assert allowed.status_code == 200
+
+
+def test_invoice_list_filters_by_project_and_uploader_for_finance() -> None:
+    with make_session() as session:
+        owner = create_user(session, email="owner@example.com", password="password", display_name="Owner", role=UserRole.user)
+        other = create_user(session, email="other@example.com", password="password", display_name="Other", role=UserRole.user)
+        finance = create_user(
+            session, email="finance@example.com", password="password", display_name="Finance", role=UserRole.finance
+        )
+        project_service = ProjectService()
+        shared = project_service.create_project(session, finance, {"name": "共享差旅", "visibility": "shared"})
+        other_private = project_service.create_project(session, other, {"name": "他人私有", "visibility": "private"})
+        wanted = seed_invoice(session, user=owner, invoice_number="10000001", project=shared)
+        seed_invoice(session, user=other, invoice_number="10000002", project=other_private)
+        client = make_client(session)
+        client.cookies.set("session", create_session_token(finance.id))
+
+        response = client.get(
+            "/api/v1/invoices",
+            params={"project_id": str(shared.id), "uploaded_by": str(owner.id)},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["total"] == 1
+        item = response.json()["data"]["items"][0]
+        assert item["id"] == str(wanted.id)
+        assert item["project"] == {"id": str(shared.id), "name": "共享差旅", "visibility": "shared", "status": "active"}
+
+
+def test_invoice_can_move_to_assignable_project_but_not_archived_project() -> None:
+    with make_session() as session:
+        owner = create_user(session, email="owner@example.com", password="password", display_name="Owner", role=UserRole.user)
+        service = ProjectService()
+        first = service.create_project(session, owner, {"name": "项目一", "visibility": "private"})
+        second = service.create_project(session, owner, {"name": "项目二", "visibility": "private"})
+        archived = service.create_project(session, owner, {"name": "已归档", "visibility": "private"})
+        service.archive_project(session, archived, owner)
+        invoice = seed_invoice(session, user=owner, project=first)
+        client = make_client(session)
+        client.cookies.set("session", create_session_token(owner.id))
+
+        moved = client.patch(f"/api/v1/invoices/{invoice.id}", json={"project_id": str(second.id)})
+
+        assert moved.status_code == 200
+        assert moved.json()["data"]["project"]["id"] == str(second.id)
+        assert invoice.document.project_id == second.id
+
+        rejected = client.patch(f"/api/v1/invoices/{invoice.id}", json={"project_id": str(archived.id)})
+        assert rejected.status_code == 409
+        assert rejected.json()["error"]["code"] == "PROJECT_ARCHIVED"
+
+
+def test_invoice_items_can_be_replaced_and_are_audited() -> None:
+    with make_session() as session:
+        owner = create_user(session, email="owner@example.com", password="password", display_name="Owner", role=UserRole.user)
+        invoice = seed_invoice(session, user=owner)
+        client = make_client(session)
+        client.cookies.set("session", create_session_token(owner.id))
+
+        response = client.put(
+            f"/api/v1/invoices/{invoice.id}/items",
+            json={
+                "items": [
+                    {
+                        "name": "住宿服务（已校正）",
+                        "specification": "大床房",
+                        "unit": "晚",
+                        "quantity": "2",
+                        "unit_price": "500.00",
+                        "amount": "1000.00",
+                        "tax_rate": "0.06",
+                        "tax_amount": "60.00",
+                    },
+                    {"name": "早餐", "amount": "80.00"},
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        assert [item["name"] for item in response.json()["data"]["items"]] == ["住宿服务（已校正）", "早餐"]
+        persisted = session.scalars(select(InvoiceItem).where(InvoiceItem.invoice_id == invoice.id)).all()
+        assert len(persisted) == 2
+        assert persisted[0].quantity == Decimal("2")
+        correction = session.scalars(
+            select(InvoiceCorrection).where(InvoiceCorrection.invoice_id == invoice.id, InvoiceCorrection.field_path == "items")
+        ).one()
+        assert "住宿服务" in (correction.old_value or "")
+        assert "早餐" in (correction.new_value or "")
+        audit = session.scalar(select(AuditLog).where(AuditLog.action == "invoice.items_update"))
+        assert audit is not None
+        assert audit.resource_id == invoice.id

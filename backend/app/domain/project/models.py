@@ -41,6 +41,7 @@ class Project(Base, TimestampMixin):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     created_by_user = relationship("User", back_populates="projects")
+    documents = relationship("InvoiceDocument", back_populates="project")
 
     __table_args__ = (
         Index("ix_projects_visibility_status", "visibility", "status"),

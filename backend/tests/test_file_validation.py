@@ -8,11 +8,13 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.routes.documents import find_default_ocr_provider
 from app.core.config import UPLOAD_VALIDATION_DEFAULTS, Settings
-from app.db.base import import_all_models
+from app.db.base import Base, import_all_models
 from app.db.session import get_db
 from app.domain.file.models import InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
 from app.domain.file.validators import validate_upload
+from app.domain.project.models import ProjectVisibility
+from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, User, UserRole
 from app.domain.user.service import create_session_token, create_user
 from app.main import create_app
@@ -74,9 +76,7 @@ def db_session() -> Session:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    User.__table__.create(engine)
-    AuditLog.__table__.create(engine)
-    InvoiceDocument.__table__.create(engine)
+    Base.metadata.create_all(engine)
     session_local = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     with session_local() as session:
         yield session
@@ -207,6 +207,7 @@ def test_upload_document_creates_document_without_ocr_job_when_no_provider(
     assert saved.image_height == 80
     assert saved.page_count == 1
     assert saved.status.value == "uploaded"
+    assert saved.project.system_key == "uncategorized"
     assert (tmp_path / saved.storage_key).exists()
     audit = db_session.query(AuditLog).filter_by(action="document.upload").one()
     assert audit.actor_id == user.id
@@ -214,3 +215,69 @@ def test_upload_document_creates_document_without_ocr_job_when_no_provider(
     assert audit.resource_id == saved.id
     assert audit.audit_metadata["original_filename"] == "invoice.png"
     assert audit.audit_metadata["file_ext"] == "png"
+
+
+def test_upload_document_assigns_visible_project_and_scene(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    owner = create_user(
+        db_session,
+        email="owner@example.com",
+        password="password",
+        display_name="Owner",
+        role=UserRole.user,
+    )
+    other = create_user(
+        db_session,
+        email="other@example.com",
+        password="password",
+        display_name="Other",
+        role=UserRole.user,
+    )
+    service = ProjectService()
+    project = service.create_project(
+        db_session,
+        owner,
+        {"name": "客户现场", "visibility": ProjectVisibility.private.value},
+    )
+    other_project = service.create_project(
+        db_session,
+        other,
+        {"name": "他人项目", "visibility": ProjectVisibility.private.value},
+    )
+    db_session.commit()
+    client.cookies.set("session", create_session_token(owner.id))
+    monkeypatch.setattr("app.api.routes.documents.find_default_ocr_provider", lambda db: None)
+    monkeypatch.setattr(
+        "app.api.routes.documents.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            STORAGE_PATH=str(tmp_path),
+            APP_SECRET_KEY="dev-secret-change-me",
+            OCR_CONFIG_ENCRYPTION_KEY="dev-ocr-config-encryption-key-change-me",
+        ),
+    )
+
+    uploaded = client.post(
+        "/api/v1/documents",
+        data={"auto_ocr": "false", "project_id": str(project.id), "scene": "travel"},
+        files={"file": ("invoice.png", make_png_bytes(120, 80), "image/png")},
+    )
+
+    assert uploaded.status_code == 200
+    saved = db_session.query(InvoiceDocument).one()
+    assert saved.project_id == project.id
+    assert saved.project.name == "客户现场"
+    assert saved.expense_scene == "travel"
+
+    forbidden = client.post(
+        "/api/v1/documents",
+        data={"auto_ocr": "false", "project_id": str(other_project.id)},
+        files={"file": ("other.png", make_png_bytes(120, 80), "image/png")},
+    )
+
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"]["code"] == "PROJECT_FORBIDDEN"

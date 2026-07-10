@@ -166,6 +166,8 @@ def _apply_successful_result(db: Session, job: OcrJob, result: OcrRecognitionRes
     job.status = OcrJobStatus.normalizing
     mapped = TencentVatInvoiceMapper().map(result.raw_response)
     invoice = job.document.invoice or Invoice(document=job.document)
+    if invoice.expense_scene is None:
+        invoice.expense_scene = job.document.expense_scene
     for field, value in mapped.invoice_fields.items():
         setattr(invoice, field, value)
     invoice.latest_ocr_job = job

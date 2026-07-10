@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from sqlalchemy import select
@@ -16,6 +17,7 @@ from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
 from app.domain.file.validators import ValidatedUpload, validate_upload
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig
+from app.domain.project.service import ProjectService
 from app.domain.user.models import User
 from app.workers.tasks import process_ocr_job_task
 
@@ -29,20 +31,21 @@ async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     scene: str | None = Form(default=None),
+    project_id: UUID | None = Form(default=None),
     auto_ocr: bool = Form(default=True),
     idempotency_key: str | None = Form(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, dict[str, Any]]:
-    del scene
-
     content = await file.read()
     validated = validate_upload(file.filename or "upload.bin", file.content_type, content)
+    project = ProjectService().get_assignable_project(db, project_id, current_user)
     storage = LocalFileStorage(get_settings().storage_path)
     storage_key = storage.save(validated)
 
     document = InvoiceDocument(
         uploaded_by=current_user.id,
+        project=project,
         original_filename=validated.original_filename,
         content_type=validated.content_type or "application/octet-stream",
         file_ext=validated.file_ext,
@@ -53,6 +56,7 @@ async def upload_document(
         page_count=validated.page_count,
         image_width=validated.image_width,
         image_height=validated.image_height,
+        expense_scene=scene.strip() if scene and scene.strip() else None,
         status=DocumentStatus.uploaded,
     )
     db.add(document)
@@ -77,6 +81,8 @@ async def upload_document(
             "file_size": document.file_size,
             "sha256": document.sha256,
             "auto_ocr": auto_ocr,
+            "project_id": str(project.id),
+            "scene": document.expense_scene,
             "ocr_job_id": str(ocr_job.id) if ocr_job else None,
         },
         request=request,
@@ -95,6 +101,10 @@ async def upload_document(
             "ocr_job_id": str(ocr_job.id) if ocr_job is not None else None,
             "status": document.status.value,
             "sha256": document.sha256,
+            "project": {
+                "id": str(project.id),
+                "name": project.name,
+            },
         }
     }
 
@@ -127,5 +137,6 @@ def build_ocr_job(
             "content_type": validated_upload.content_type,
             "file_ext": validated_upload.file_ext,
             "pdf_page_number": pdf_page_number,
+            "expense_scene": document.expense_scene,
         },
     )

@@ -87,6 +87,18 @@ class ProjectService:
             raise AppError("PROJECT_NOT_FOUND", "Project was not found", status_code=404)
         return project
 
+    def get_assignable_project(self, db: Session, project_id: UUID | None, current_user: User) -> Project:
+        project = self.ensure_uncategorized(db) if project_id is None else self.get_project(db, project_id)
+        if project.status != ProjectStatus.active:
+            raise AppError("PROJECT_ARCHIVED", "Archived projects cannot receive invoices", status_code=409)
+        if current_user.role in {UserRole.finance, UserRole.admin}:
+            return project
+        if project.visibility in {ProjectVisibility.system, ProjectVisibility.shared}:
+            return project
+        if project.visibility == ProjectVisibility.private and str(project.created_by) == str(current_user.id):
+            return project
+        raise AppError("PROJECT_FORBIDDEN", "You cannot assign invoices to this project", status_code=403)
+
     def update_project(self, db: Session, project: Project, current_user: User, payload: dict[str, Any]) -> Project:
         self._assert_manageable(project, current_user)
         if "name" in payload:

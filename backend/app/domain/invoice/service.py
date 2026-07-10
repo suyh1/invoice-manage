@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from decimal import Decimal
+import json
 from typing import Any
 from uuid import UUID
 
@@ -12,7 +13,8 @@ from app.api.dependencies import assert_invoice_access
 from app.core.errors import AppError
 from app.domain.file.models import InvoiceDocument
 from app.domain.invoice.duplicate import detect_duplicates_for_invoice
-from app.domain.invoice.models import Invoice, InvoiceCorrection, InvoiceStatus
+from app.domain.invoice.models import Invoice, InvoiceCorrection, InvoiceItem, InvoiceStatus
+from app.domain.project.service import ProjectService
 from app.domain.user.models import User, UserRole
 
 
@@ -38,11 +40,16 @@ class InvoiceService:
         statement = (
             select(Invoice)
             .join(Invoice.document)
-            .options(selectinload(Invoice.document))
+            .options(selectinload(Invoice.document).selectinload(InvoiceDocument.project))
             .order_by(Invoice.created_at.desc(), Invoice.id.desc())
         )
         if current_user.role not in {UserRole.finance, UserRole.admin}:
             statement = statement.where(InvoiceDocument.uploaded_by == current_user.id)
+        elif filters.get("uploaded_by"):
+            statement = statement.where(InvoiceDocument.uploaded_by == UUID(str(filters["uploaded_by"])))
+
+        if filters.get("project_id"):
+            statement = statement.where(InvoiceDocument.project_id == UUID(str(filters["project_id"])))
 
         if filters.get("status"):
             statement = statement.where(Invoice.status == InvoiceStatus(filters["status"]))
@@ -93,7 +100,7 @@ class InvoiceService:
             Invoice,
             invoice_id,
             options=[
-                selectinload(Invoice.document),
+                selectinload(Invoice.document).selectinload(InvoiceDocument.project),
                 selectinload(Invoice.latest_ocr_job),
                 selectinload(Invoice.items),
                 selectinload(Invoice.corrections),
@@ -106,6 +113,21 @@ class InvoiceService:
 
     def update_invoice(self, db: Session, invoice: Invoice, payload: dict[str, Any], current_user: User) -> Invoice:
         assert_invoice_access(invoice, current_user)
+        if "project_id" in payload:
+            project_id = UUID(str(payload.pop("project_id"))) if payload["project_id"] is not None else None
+            project = ProjectService().get_assignable_project(db, project_id, current_user)
+            old_project_id = invoice.document.project_id
+            if old_project_id != project.id:
+                invoice.corrections.append(
+                    InvoiceCorrection(
+                        field_path="project_id",
+                        ocr_value=None,
+                        old_value=str(old_project_id) if old_project_id else None,
+                        new_value=str(project.id),
+                        changed_by=current_user.id,
+                    )
+                )
+                invoice.document.project = project
         for field, field_type in INVOICE_PATCH_FIELDS.items():
             if field not in payload:
                 continue
@@ -124,6 +146,36 @@ class InvoiceService:
             setattr(invoice, field, new_value)
             db.add(correction)
         detect_duplicates_for_invoice(db, invoice)
+        db.flush()
+        return invoice
+
+    def replace_items(self, db: Session, invoice: Invoice, items: list[dict[str, Any]], current_user: User) -> Invoice:
+        assert_invoice_access(invoice, current_user)
+        old_items = [serialize_invoice_item(item) for item in invoice.items]
+        invoice.items.clear()
+        for payload in items:
+            invoice.items.append(
+                InvoiceItem(
+                    name=_optional_text(payload.get("name")),
+                    specification=_optional_text(payload.get("specification")),
+                    unit=_optional_text(payload.get("unit")),
+                    quantity=_optional_decimal(payload.get("quantity")),
+                    unit_price=_optional_decimal(payload.get("unit_price")),
+                    amount=_optional_decimal(payload.get("amount")),
+                    tax_rate=_optional_decimal(payload.get("tax_rate")),
+                    tax_amount=_optional_decimal(payload.get("tax_amount")),
+                )
+            )
+        new_items = [serialize_invoice_item(item) for item in invoice.items]
+        invoice.corrections.append(
+            InvoiceCorrection(
+                field_path="items",
+                ocr_value=json.dumps((invoice.normalized_payload or {}).get("items"), ensure_ascii=False),
+                old_value=json.dumps(old_items, ensure_ascii=False),
+                new_value=json.dumps(new_items, ensure_ascii=False),
+                changed_by=current_user.id,
+            )
+        )
         db.flush()
         return invoice
 
@@ -166,6 +218,7 @@ def serialize_invoice_summary(invoice: Invoice) -> dict[str, Any]:
         "expense_scene": invoice.expense_scene,
         "status": invoice.status.value,
         "is_duplicate_suspected": invoice.is_duplicate_suspected,
+        "project": serialize_project_summary(invoice.document.project) if invoice.document and invoice.document.project else None,
         "document": serialize_document(invoice.document) if invoice.document else None,
     }
 
@@ -201,6 +254,15 @@ def serialize_document(document: InvoiceDocument) -> dict[str, Any]:
         "sha256": document.sha256,
         "status": document.status.value,
         "created_at": document.created_at.isoformat() if document.created_at else None,
+    }
+
+
+def serialize_project_summary(project) -> dict[str, str]:
+    return {
+        "id": str(project.id),
+        "name": project.name,
+        "visibility": project.visibility.value,
+        "status": project.status.value,
     }
 
 
@@ -290,3 +352,15 @@ def _serialize_scalar(value: Any) -> str | None:
     if isinstance(value, date):
         return value.isoformat()
     return str(value)
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    return str(value).strip() or None
+
+
+def _optional_decimal(value: Any) -> Decimal | None:
+    if value is None or str(value).strip() == "":
+        return None
+    return Decimal(str(value))
