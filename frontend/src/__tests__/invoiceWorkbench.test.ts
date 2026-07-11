@@ -9,9 +9,16 @@ const router = readFileSync(new URL("../app/router.tsx", import.meta.url), "utf8
 describe("invoice workbench", () => {
   it("integrates project navigation and project dialogs into the invoice library", () => {
     expect(invoicePage).toContain("ProjectEditorDialog");
-    expect(invoicePage).toContain('className="project-rail"');
+    expect(invoicePage).toContain("project-rail");
     expect(invoicePage).toContain("创建项目");
     expect(invoicePage).toContain("changeArchiveState");
+  });
+
+  it("uses the approved archive and ledger composition", () => {
+    expect(invoicePage).toContain("project-index");
+    expect(invoicePage).toContain("archive-toolbar");
+    expect(invoicePage).toContain("invoice-archive-ledger");
+    expect(invoicePage).toContain("INVOICE ARCHIVE");
   });
 
   it("removes the standalone project route without legacy compatibility code", () => {

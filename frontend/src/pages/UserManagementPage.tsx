@@ -61,10 +61,10 @@ export function UserManagementPage() {
   }
 
   return (
-    <section className="management-page">
+    <section className="management-page user-ledger">
       <div className="management-toolbar">
         <div>
-          <span className="section-label">账号与权限</span>
+          <span className="section-label">ACCESS REGISTER / 账号与权限</span>
           <h2>用户管理</h2>
           <p>创建内部账号，分配固定角色，并控制账号启用状态。</p>
         </div>

@@ -137,14 +137,14 @@ export function ReviewQueuePage() {
 
   return (
     <div className="page-stack review-page">
-      <section className="surface-panel review-header">
+      <section className="surface-panel review-header review-ledger-header">
         <div>
-          <span className="section-label">处理队列</span>
+          <span className="section-label">HUMAN REVIEW / 处理队列</span>
           <h2>待校对</h2>
           <p>处理待确认字段、疑似重复和识别失败的发票。</p>
         </div>
-        <div className="review-tabs" aria-label="校对队列" role="tablist">
-          {tabs.map((candidate) => (
+        <div className="review-tabs numbered-review-tabs" aria-label="校对队列" role="tablist">
+          {tabs.map((candidate, index) => (
             <button
               aria-selected={tab === candidate.id}
               className={tab === candidate.id ? "active" : ""}
@@ -153,6 +153,7 @@ export function ReviewQueuePage() {
               role="tab"
               type="button"
             >
+              <i aria-hidden="true">{String(index + 1).padStart(2, "0")}</i>
               <span>{candidate.label}</span>
               <strong>{summary[candidate.id]}</strong>
             </button>
@@ -186,7 +187,7 @@ export function ReviewQueuePage() {
           <div className="empty-state"><strong>当前队列为空</strong><p>这里会显示需要人工处理的发票和识别失败文件。</p></div>
         ) : (
           <div className="review-table-wrap">
-            <table className="review-table">
+            <table className="review-table review-ledger-table">
               <thead>
                 <tr>
                   <th>

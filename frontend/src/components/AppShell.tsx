@@ -1,4 +1,5 @@
 import type { PropsWithChildren } from "react";
+import { Bell, Search, Upload } from "lucide-react";
 
 import { appRoutes, type AppRoute } from "../app/router";
 import { useAuth } from "../auth/AuthContext";
@@ -16,18 +17,17 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
     <main className="app-shell">
       <aside className="sidebar" aria-label="主导航">
         <a className="brand" href="#/" aria-label="Invoice OCR 总览">
-          <span className="brand-mark" aria-hidden="true">
-            IO
-          </span>
           <span>
             <strong>Invoice OCR</strong>
-            <small>发票识别工作台</small>
+            <small>发票识别与归档</small>
           </span>
         </a>
 
         <nav className="nav-list">
-          {visibleRoutes.map((route) => (
+          <span className="nav-list-caption">工作区 / 01</span>
+          {visibleRoutes.map((route, index) => (
             <a className={route.id === activeRoute.id ? "active" : ""} href={route.path} key={route.id}>
+              <i className="shell-nav-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</i>
               <span>{route.label}</span>
               {route.badge ? <em>{route.badge}</em> : null}
             </a>
@@ -39,13 +39,20 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
 
       <section className="workspace">
         <header className="topbar">
-          <div>
-            <span className="section-label">当前模块</span>
-            <h1>{activeRoute.label}</h1>
+          <div className="topbar-breadcrumb">
+            <span>发票管理</span>
+            <i aria-hidden="true">/</i>
+            <strong>{activeRoute.label}</strong>
           </div>
+          <button className="shell-command-search" type="button">
+            <Search aria-hidden="true" size={14} />
+            <span>搜索发票、项目或供应商</span>
+            <kbd>⌘ K</kbd>
+          </button>
           <div className="topbar-actions" aria-label="系统状态">
-            <span className="status-token success">本地部署</span>
-            <span className="status-token neutral">Mock OCR 可用</span>
+            <button className="topbar-icon-button" aria-label="通知" type="button"><Bell aria-hidden="true" size={15} /></button>
+            <span className="shell-local-state"><i aria-hidden="true" />本地运行</span>
+            <a className="button primary shell-upload-command" href="#/upload"><Upload aria-hidden="true" size={14} />上传发票</a>
             {auth.user ? (
               <UserMenu user={auth.user} onChangePassword={auth.changePassword} onLogout={auth.logout} />
             ) : null}

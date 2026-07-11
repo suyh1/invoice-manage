@@ -17,7 +17,7 @@ export function InvoicePreview({ document }: { document: InvoiceDocumentMeta | n
 
   if (!document) {
     return (
-      <section className="surface-panel invoice-preview">
+      <section className="surface-panel invoice-preview document-stage">
         <span className="section-label">原件预览</span>
         <strong>暂无原件</strong>
       </section>
@@ -29,7 +29,7 @@ export function InvoicePreview({ document }: { document: InvoiceDocumentMeta | n
   const isPdf = document.file_ext.toLowerCase() === "pdf";
 
   return (
-    <section className="surface-panel invoice-preview">
+    <section className="surface-panel invoice-preview document-stage">
       <div className="panel-heading">
         <div>
           <span className="section-label">原件预览</span>

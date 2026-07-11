@@ -183,11 +183,11 @@ export function UploadPage() {
   }
 
   return (
-    <div className="page-stack">
-      <section className="dashboard-band upload-band">
+    <div className="page-stack upload-editorial">
+      <section className="dashboard-band upload-band editorial-page-heading">
         <div>
-          <span className="section-label">上传识别</span>
-          <h2>先检查文件，再创建 OCR 作业</h2>
+          <span className="section-label">INGEST / 上传识别</span>
+          <h2>把原件交给系统，<em>数据从这里开始。</em></h2>
           <p>上传前会拦截不支持的类型、GIF、Base64 后超过 10MB 的文件，以及超出 OCR 尺寸限制的图片。</p>
         </div>
         <OcrQuotaStatus compact />
@@ -195,9 +195,9 @@ export function UploadPage() {
 
       <section className="upload-flow" aria-label="上传识别流程">
         <ol className="workflow-steps">
-          <li className="active"><span>1</span>选择文件</li>
-          <li className={items.length ? "active" : ""}><span>2</span>确认归属</li>
-          <li className={busy || items.some((item) => ["uploaded", "ocr_queued", "recognizing", "completed", "failed"].includes(item.status)) ? "active" : ""}><span>3</span>上传与识别</li>
+          <li className="active"><span>01</span>选择文件</li>
+          <li className={items.length ? "active" : ""}><span>02</span>确认归属</li>
+          <li className={busy || items.some((item) => ["uploaded", "ocr_queued", "recognizing", "completed", "failed"].includes(item.status)) ? "active" : ""}><span>03</span>上传与识别</li>
         </ol>
 
         <div className="upload-stage">

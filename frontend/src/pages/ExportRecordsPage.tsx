@@ -75,10 +75,10 @@ export function ExportRecordsPage() {
   }
 
   return (
-    <div className="page-stack export-page">
-      <section className="surface-panel export-create">
+    <div className="page-stack export-page export-ledger">
+      <section className="surface-panel export-create editorial-page-heading">
         <div>
-          <span className="section-label">数据交付</span>
+          <span className="section-label">DATA DELIVERY / 数据交付</span>
           <h2>创建导出</h2>
           <p>按当前项目和发票状态生成可下载的数据文件。</p>
         </div>
@@ -92,7 +92,7 @@ export function ExportRecordsPage() {
         </div>
       </section>
 
-      <section className="surface-panel export-records">
+      <section className="surface-panel export-records ledger-surface">
         <div className="panel-heading"><div><span className="section-label">导出记录</span><h2>{loading ? "正在加载" : `${tasks.length} 个任务`}</h2></div></div>
         {message ? <p className="inline-message error" role="alert">{message}</p> : null}
         {loading ? <div className="empty-state"><strong>正在加载导出记录...</strong></div> : !tasks.length ? <div className="empty-state"><strong>暂无导出记录</strong><p>创建导出后，文件状态和下载入口会显示在这里。</p></div> : <div className="export-table-wrap"><table className="export-table"><thead><tr><th>范围</th><th>格式</th><th>创建人</th><th>状态</th><th>创建时间</th><th>过期时间</th><th>操作</th></tr></thead><tbody>{tasks.map((task) => { const canDownload = canDownloadExport(task); return <tr key={task.id}><td>{describeFilters(task.filters)}</td><td>{task.format.toUpperCase()}</td><td>{task.created_by_user?.display_name || "未知"}</td><td><span className={`status-token ${task.status === "completed" ? "success" : task.status === "failed" ? "danger" : "neutral"}`}>{exportStatusLabel(task.status)}</span>{task.error_message ? <small>{task.error_message}</small> : null}</td><td>{formatDateTime(task.created_at)}</td><td>{task.expires_at ? formatDateTime(task.expires_at) : "-"}</td><td><div className="row-actions">{canDownload ? <a className="button secondary" href={`/api/v1/exports/${task.id}/download`}><Download aria-hidden="true" size={16} />下载</a> : null}{(task.status === "failed" || (task.status === "completed" && !canDownload)) ? <button className="button secondary" disabled={busy} onClick={() => void createExport(toReexportPayload(task))} type="button"><RefreshCw aria-hidden="true" size={16} />重新创建</button> : null}</div></td></tr>; })}</tbody></table></div>}

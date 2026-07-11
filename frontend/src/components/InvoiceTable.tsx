@@ -38,7 +38,7 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
 
   return (
     <div className="invoice-table-wrap">
-      <table className="invoice-table">
+      <table className="invoice-table invoice-ledger-table">
         <thead>
           <tr>
             <th>发票号码</th>

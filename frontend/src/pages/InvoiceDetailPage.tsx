@@ -245,7 +245,7 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div className="page-stack">
+    <div className="page-stack invoice-review-workbench">
       <section className="surface-panel detail-header">
         <div>
           <a className="section-label" href="#/invoices">
@@ -256,7 +256,7 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
             {detail.seller_name || "未知销售方"} · {detail.invoice_date || "未知日期"} · {detail.amount_with_tax || "金额待校对"}
           </p>
         </div>
-        <div className="detail-actions">
+        <div className="detail-actions persistent-review-actions">
           <button className="button primary" disabled={status === "saving"} onClick={() => runAction("confirm")} type="button">
             确认无误
           </button>
@@ -273,7 +273,7 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
 
       <section className="invoice-detail-layout">
         <InvoicePreview document={detail.document} />
-        <div className="detail-editor-stack">
+        <div className="detail-editor-stack field-inspector">
           <section className="surface-panel project-assignment-panel">
             <div>
               <span className="section-label">项目归档</span>

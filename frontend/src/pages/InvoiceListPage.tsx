@@ -95,6 +95,11 @@ export function InvoiceListPage() {
     setFilters((current) => ({ ...emptyFilters, project_id: current.project_id, ...viewFilters }));
   }
 
+  function isSavedViewActive(viewFilters: Partial<InvoiceFilters>) {
+    return Object.entries(viewFilters).every(([key, value]) => filters[key as keyof InvoiceFilters] === value)
+      && Object.entries(filters).every(([key, value]) => !value || key === "project_id" || viewFilters[key as keyof InvoiceFilters] === value);
+  }
+
   async function submitProject(payload: { name: string; description: string | null; visibility?: "private" | "shared" }) {
     if (!dialogAction) return;
     setBusyProjectId(dialogAction.mode === "edit" ? dialogAction.project.id : "new");
@@ -136,12 +141,12 @@ export function InvoiceListPage() {
   }
 
   return (
-    <div className="invoice-workbench">
-      <aside className="project-rail" aria-label="项目导航">
+    <div className="invoice-workbench invoice-archive">
+      <aside className="project-rail project-index" aria-label="项目导航">
         <div className="project-rail-heading">
           <div>
-            <span className="section-label">项目</span>
-            <h2>发票范围</h2>
+            <span className="section-label">PROJECT INDEX</span>
+            <h2>项目索引</h2>
           </div>
           <button
             aria-label="创建项目"
@@ -216,22 +221,22 @@ export function InvoiceListPage() {
       </aside>
 
       <div className="invoice-workbench-main">
-        <header className="invoice-list-header">
+        <header className="invoice-list-header archive-heading">
           <div>
-            <span className="section-label">发票工作台</span>
+            <span className="section-label">INVOICE ARCHIVE / {invoices.length} RECORDS</span>
             <h2>{selectedProject?.name || "全部发票"}</h2>
-            <p>{selectedProject?.description || "按项目组织、筛选并进入发票校对流程。"}</p>
+            <p>{selectedProject?.description || "按项目组织、筛选，并追踪每一张发票从原件到数据的完整路径。"}</p>
           </div>
           <div className="saved-view-bar" aria-label="常用视图">
             {savedViews.map((view) => (
-              <button className="button secondary" key={view.label} onClick={() => applySavedView(view.filters)} type="button">
+              <button className={`button secondary ${isSavedViewActive(view.filters) ? "active" : ""}`} key={view.label} onClick={() => applySavedView(view.filters)} type="button">
                 {view.label}
               </button>
             ))}
           </div>
         </header>
 
-        <section className="surface-panel invoice-filters" aria-label="发票筛选">
+        <section className="surface-panel invoice-filters archive-toolbar" aria-label="发票筛选">
           <label>
             搜索
             <input
@@ -281,7 +286,7 @@ export function InvoiceListPage() {
           </label>
         </section>
 
-        <section className="surface-panel invoice-list-panel">
+        <section className="surface-panel invoice-list-panel invoice-archive-ledger">
           <div className="panel-heading">
             <div>
               <span className="section-label">查询结果</span>
