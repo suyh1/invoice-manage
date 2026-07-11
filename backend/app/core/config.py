@@ -67,6 +67,7 @@ UPLOAD_VALIDATION_DEFAULTS = UploadValidationDefaults(
     max_image_dimension_px=10000,
     max_pdf_pages=1,
 )
+PROJECT_FILE_MAX_SIZE_BYTES = 50 * 1024 * 1024
 
 OCR_RETRY_DEFAULTS = OcrRetryDefaults(max_attempts=3, backoff_seconds=(10, 30, 120))
 

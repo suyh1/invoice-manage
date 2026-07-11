@@ -6,7 +6,7 @@ import { UploadDropzone } from "../components/UploadDropzone";
 import { UploadQueue, type UploadQueueItem } from "../components/UploadQueue";
 import { ApiError, apiGet, apiPost, apiPostForm } from "../lib/api";
 import { EXPENSE_SCENE_OPTIONS } from "../lib/expenseScenes";
-import { validateUploadCandidate } from "../lib/fileValidation";
+import { validateProjectFileCandidate, validateUploadCandidate } from "../lib/fileValidation";
 import type { ProjectSummary } from "../lib/projects";
 
 type DocumentUploadResponse = {
@@ -23,12 +23,15 @@ type OcrJobResponse = {
   request_id?: string | null;
 };
 
+type UploadMode = "invoice" | "project_file";
+
 export function UploadPage() {
   const [items, setItems] = useState<UploadQueueItem[]>([]);
   const [scene, setScene] = useState("");
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [projectId, setProjectId] = useState("");
   const [autoOcr, setAutoOcr] = useState(true);
+  const [uploadMode, setUploadMode] = useState<UploadMode>("invoice");
 
   const readyCount = useMemo(() => items.filter((item) => item.status === "ready").length, [items]);
   const busy = items.some((item) => item.status === "uploading" || item.status === "recognizing" || item.status === "ocr_queued");
@@ -57,21 +60,25 @@ export function UploadPage() {
     }));
     setItems((current) => [...pendingItems, ...current]);
 
-    pendingItems.forEach((item) => {
-      validateUploadCandidate(item.file)
-        .then((validation) => {
-          updateItem(item.id, {
-            status: validation.accepted ? "ready" : "blocked",
-            validation,
-          });
-        })
-        .catch(() => {
-          updateItem(item.id, {
-            error: "文件校验失败，请重新选择。",
-            status: "blocked",
-          });
-        });
-    });
+    pendingItems.forEach((item) => validateQueueItem(item, uploadMode));
+  }
+
+  function changeUploadMode(mode: UploadMode) {
+    if (mode === uploadMode || busy) return;
+    setUploadMode(mode);
+    setItems((current) => current.map((item) => ({ ...item, error: undefined, status: "validating" })));
+    items.forEach((item) => validateQueueItem(item, mode));
+  }
+
+  function validateQueueItem(item: UploadQueueItem, mode: UploadMode) {
+    const validator = mode === "project_file" ? validateProjectFileCandidate : validateUploadCandidate;
+    validator(item.file)
+      .then((validation) => {
+        updateItem(item.id, { status: validation.accepted ? "ready" : "blocked", validation });
+      })
+      .catch(() => {
+        updateItem(item.id, { error: "文件校验失败，请重新选择。", status: "blocked" });
+      });
   }
 
   function removeItem(id: string) {
@@ -122,9 +129,10 @@ export function UploadPage() {
 
     const body = new FormData();
     body.append("file", item.file);
-    body.append("auto_ocr", String(autoOcr));
+    body.append("document_kind", uploadMode);
+    body.append("auto_ocr", String(uploadMode === "invoice" && autoOcr));
     body.append("idempotency_key", item.id);
-    if (scene.trim()) {
+    if (uploadMode === "invoice" && scene.trim()) {
       body.append("scene", scene.trim());
     }
     if (projectId) {
@@ -187,38 +195,44 @@ export function UploadPage() {
     <div className="page-stack upload-editorial">
       <section className="dashboard-band upload-band editorial-page-heading">
         <div>
-          <span className="section-label">INGEST / 上传识别</span>
-          <h2>把原件交给系统，<em>数据从这里开始。</em></h2>
-          <p>上传前会拦截不支持的类型、GIF、Base64 后超过 10MB 的文件，以及超出 OCR 尺寸限制的图片。</p>
+          <span className="section-label">INGEST / 文件入库</span>
+          <h2>{uploadMode === "project_file" ? "把项目资料放到正确的位置。" : <>把原件交给系统，<em>数据从这里开始。</em></>}</h2>
+          <p>{uploadMode === "project_file"
+            ? "项目文件直接归档，不创建 OCR 作业或发票数据。"
+            : "上传前会拦截不支持的类型、GIF、Base64 后超过 10MB 的文件，以及超出 OCR 尺寸限制的图片。"}</p>
         </div>
-        <OcrQuotaStatus compact />
+        {uploadMode === "invoice" ? <OcrQuotaStatus compact /> : null}
       </section>
 
       <section className="upload-flow" aria-label="上传识别流程">
+        <div className="upload-mode-switch" role="group" aria-label="上传类型">
+          <button className={uploadMode === "invoice" ? "active" : ""} disabled={busy} onClick={() => changeUploadMode("invoice")} type="button">发票识别</button>
+          <button className={uploadMode === "project_file" ? "active" : ""} disabled={busy} onClick={() => changeUploadMode("project_file")} type="button">项目文件</button>
+        </div>
         <ol className="workflow-steps">
           <li className="active"><span>01</span>选择文件</li>
           <li className={items.length ? "active" : ""}><span>02</span>确认归属</li>
-          <li className={busy || items.some((item) => ["uploaded", "ocr_queued", "recognizing", "completed", "failed"].includes(item.status)) ? "active" : ""}><span>03</span>上传与识别</li>
+          <li className={busy || items.some((item) => ["uploaded", "ocr_queued", "recognizing", "completed", "failed"].includes(item.status)) ? "active" : ""}><span>03</span>{uploadMode === "project_file" ? "上传与归档" : "上传与识别"}</li>
         </ol>
 
         <div className="upload-stage">
-          <UploadDropzone disabled={busy} onFiles={addFiles} />
+          <UploadDropzone disabled={busy} mode={uploadMode} onFiles={addFiles} />
           {items.length ? (
             <div className="upload-batch-settings" aria-label="上传设置">
               <ProjectFilter disabled={busy || projects.length === 0} includeAll={false} label="归属项目" onChange={setProjectId} projects={projects} value={projectId} />
-              <label>
+              {uploadMode === "invoice" ? <label>
                 业务场景
                 <select value={scene} onChange={(event) => setScene(event.currentTarget.value)}>
                   <option value="">不指定</option>
                   {EXPENSE_SCENE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
-              </label>
-              <label className="check-row"><input checked={autoOcr} onChange={(event) => setAutoOcr(event.currentTarget.checked)} type="checkbox" /><span>上传后自动识别</span></label>
+              </label> : null}
+              {uploadMode === "invoice" ? <label className="check-row"><input checked={autoOcr} onChange={(event) => setAutoOcr(event.currentTarget.checked)} type="checkbox" /><span>上传后自动识别</span></label> : null}
               <button className="button primary" disabled={readyCount === 0 || busy} onClick={uploadAllReady} type="button">{readyCount ? `上传 ${readyCount} 个文件` : "等待文件校验"}</button>
             </div>
           ) : null}
         </div>
-        {items.length ? <UploadQueue items={items} onRemove={removeItem} onRetry={retryItem} onUploadReady={uploadReadyById} /> : null}
+        {items.length ? <UploadQueue items={items} mode={uploadMode} onRemove={removeItem} onRetry={retryItem} onUploadReady={uploadReadyById} /> : null}
       </section>
     </div>
   );

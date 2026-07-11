@@ -31,7 +31,13 @@ def run_export_task_task(task_id: str) -> str:
     from app.domain.export.service import run_export_task
 
     with SessionLocal() as session:
-        task = run_export_task(task_id, db=session)
+        settings = get_settings()
+        task = run_export_task(
+            task_id,
+            db=session,
+            export_root=settings.export_path,
+            storage_root=settings.storage_path,
+        )
         return str(task.id)
 
 

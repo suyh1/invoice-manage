@@ -1,4 +1,5 @@
 export type ExportStatus = "queued" | "running" | "completed" | "failed";
+export type ExportFormat = "csv" | "json" | "xlsx" | "zip";
 
 const exportStatusLabels: Record<ExportStatus, string> = {
   queued: "等待导出",
@@ -23,7 +24,7 @@ export function canDownloadExport(
 }
 
 export function toReexportPayload(task: {
-  format: "csv" | "json" | "xlsx";
+  format: ExportFormat;
   filters: Record<string, unknown>;
 }) {
   const { include_items = true, include_ocr_meta = true, scope = "filtered_invoices", ...filters } = task.filters;
@@ -33,5 +34,39 @@ export function toReexportPayload(task: {
     filters,
     include_items: Boolean(include_items),
     include_ocr_meta: Boolean(include_ocr_meta),
+  };
+}
+
+export function buildExportPayload({
+  format,
+  includeItems,
+  includeOcrMeta,
+  projectId,
+  status,
+}: {
+  format: ExportFormat;
+  includeItems: boolean;
+  includeOcrMeta: boolean;
+  projectId: string;
+  status: string;
+}) {
+  if (format === "zip") {
+    return {
+      format,
+      scope: "project_files",
+      filters: projectId ? { project_id: projectId } : {},
+      include_items: false,
+      include_ocr_meta: false,
+    };
+  }
+  const filters: Record<string, unknown> = {};
+  if (projectId) filters.project_id = projectId;
+  if (status) filters.status = [status];
+  return {
+    format,
+    scope: "filtered_invoices",
+    filters,
+    include_items: includeItems,
+    include_ocr_meta: includeOcrMeta,
   };
 }

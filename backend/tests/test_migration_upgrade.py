@@ -64,6 +64,7 @@ def test_upgrade_backfills_existing_documents_to_uncategorized_project() -> None
     assert "session_version" in {column["name"] for column in inspector.get_columns("users")}
     assert "project_id" in {column["name"] for column in inspector.get_columns("invoice_documents")}
     assert "expense_scene" in {column["name"] for column in inspector.get_columns("invoice_documents")}
+    assert "document_kind" in {column["name"] for column in inspector.get_columns("invoice_documents")}
     assert "error_message" in {column["name"] for column in inspector.get_columns("export_tasks")}
 
     with engine.begin() as connection:
@@ -72,6 +73,9 @@ def test_upgrade_backfills_existing_documents_to_uncategorized_project() -> None
         ).mappings().one()
         document_project_id = connection.execute(
             text("SELECT project_id FROM invoice_documents WHERE id = :id"), {"id": document_id}
+        ).scalar_one()
+        document_kind = connection.execute(
+            text("SELECT document_kind FROM invoice_documents WHERE id = :id"), {"id": document_id}
         ).scalar_one()
         session_version = connection.execute(
             text("SELECT session_version FROM users WHERE id = :id"), {"id": user_id}
@@ -82,8 +86,11 @@ def test_upgrade_backfills_existing_documents_to_uncategorized_project() -> None
     assert project["visibility"] == "system"
     assert project["status"] == "active"
     assert document_project_id == project["id"]
+    assert document_kind == "invoice"
     assert session_version == 1
     assert state["initialized_at"] is not None
 
     project_id_column = next(column for column in inspector.get_columns("invoice_documents") if column["name"] == "project_id")
     assert project_id_column["nullable"] is False
+    document_kind_column = next(column for column in inspector.get_columns("invoice_documents") if column["name"] == "document_kind")
+    assert document_kind_column["nullable"] is False

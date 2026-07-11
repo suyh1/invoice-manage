@@ -17,8 +17,10 @@ from sqlalchemy.orm import Session, selectinload
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.domain.export.models import ExportFormat, ExportStatus, ExportTask
-from app.domain.file.models import InvoiceDocument
+from app.domain.file.models import DocumentKind, DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceStatus
+from app.domain.project.models import Project
+from app.domain.project.service import ProjectService
 from app.domain.user.models import User, UserRole
 
 
@@ -50,6 +52,18 @@ class ExportService:
     def create_task(self, db: Session, payload: dict[str, Any], current_user: User) -> ExportTask:
         export_format = ExportFormat(payload["format"])
         filters = dict(payload.get("filters") or {})
+        if export_format == ExportFormat.zip:
+            project_id = filters.get("project_id")
+            if not project_id:
+                raise AppError("EXPORT_PROJECT_REQUIRED", "ZIP exports require a project", status_code=400)
+            try:
+                project_uuid = UUID(str(project_id))
+            except ValueError as exc:
+                raise AppError("EXPORT_PROJECT_INVALID", "Export project is invalid", status_code=400) from exc
+            visible_projects = ProjectService().list_visible_projects(db, current_user, include_archived=True)
+            if not any(project.id == project_uuid for project in visible_projects):
+                raise AppError("PROJECT_FORBIDDEN", "You do not have access to this project", status_code=403)
+            filters["project_id"] = str(project_uuid)
         filters["scope"] = payload.get("scope", "filtered_invoices")
         filters["include_items"] = bool(payload.get("include_items", True))
         filters["include_ocr_meta"] = bool(payload.get("include_ocr_meta", True))
@@ -88,7 +102,14 @@ class ExportService:
         return path
 
 
-def run_export_task(task_id: UUID | str, *, db: Session, export_root: Path | None = None, now: datetime | None = None) -> ExportTask:
+def run_export_task(
+    task_id: UUID | str,
+    *,
+    db: Session,
+    export_root: Path | None = None,
+    storage_root: Path | None = None,
+    now: datetime | None = None,
+) -> ExportTask:
     now = now or datetime.now(UTC)
     task = db.get(ExportTask, task_id)
     if task is None:
@@ -99,9 +120,16 @@ def run_export_task(task_id: UUID | str, *, db: Session, export_root: Path | Non
     try:
         export_root = export_root or get_settings().export_path
         export_root.mkdir(parents=True, exist_ok=True)
-        invoices = _select_invoices(db, task.created_by_user, task.filters or {})
-        payload = build_export_payload(task, invoices)
-        content = render_export(task.format, payload)
+        if task.format == ExportFormat.zip:
+            content = _render_project_zip(
+                db,
+                task,
+                storage_root=storage_root or get_settings().storage_path,
+            )
+        else:
+            invoices = _select_invoices(db, task.created_by_user, task.filters or {})
+            payload = build_export_payload(task, invoices)
+            content = render_export(task.format, payload)
         storage_key = f"exports/{task.id}.{task.format.value}"
         path = export_root / storage_key
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -172,6 +200,90 @@ def render_export(export_format: ExportFormat, payload: dict[str, Any]) -> bytes
     if export_format == ExportFormat.xlsx:
         return _render_xlsx(payload)
     raise AppError("EXPORT_FORMAT_UNSUPPORTED", "Export format is not supported", status_code=400)
+
+
+def _render_project_zip(db: Session, task: ExportTask, *, storage_root: Path) -> bytes:
+    filters = task.filters or {}
+    project_id = filters.get("project_id")
+    if not project_id:
+        raise AppError("EXPORT_PROJECT_REQUIRED", "ZIP exports require a project", status_code=400)
+    project = db.get(Project, UUID(str(project_id)))
+    if project is None:
+        raise AppError("PROJECT_NOT_FOUND", "Project was not found", status_code=404)
+
+    documents = _select_project_documents(db, task.created_by_user, project.id)
+    output = io.BytesIO()
+    manifest_files: list[dict[str, Any]] = []
+    used_names: dict[str, set[str]] = {"发票原件": set(), "项目文件": set()}
+    root = storage_root.resolve()
+    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
+        for document in documents:
+            folder = "发票原件" if document.document_kind == DocumentKind.invoice else "项目文件"
+            archive_name = _unique_archive_name(document.original_filename, used_names[folder])
+            archive_path = f"{folder}/{archive_name}"
+            source_path = (root / document.storage_key).resolve()
+            if not source_path.is_relative_to(root):
+                raise AppError("DOCUMENT_STORAGE_INVALID", "Document storage path is invalid", status_code=500)
+            if not source_path.is_file():
+                raise FileNotFoundError(document.storage_key)
+            archive.write(source_path, archive_path)
+            manifest_files.append(_manifest_file(document, archive_path))
+        manifest = {
+            "project": {"id": str(project.id), "name": project.name},
+            "file_count": len(manifest_files),
+            "files": manifest_files,
+        }
+        archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8"))
+    return output.getvalue()
+
+
+def _select_project_documents(db: Session, user: User, project_id: UUID) -> list[InvoiceDocument]:
+    statement = (
+        select(InvoiceDocument)
+        .options(selectinload(InvoiceDocument.uploaded_by_user))
+        .where(
+            InvoiceDocument.project_id == project_id,
+            InvoiceDocument.status != DocumentStatus.deleted,
+        )
+        .order_by(InvoiceDocument.document_kind.asc(), InvoiceDocument.created_at.asc(), InvoiceDocument.id.asc())
+    )
+    if user.role not in {UserRole.finance, UserRole.admin}:
+        statement = statement.where(InvoiceDocument.uploaded_by == user.id)
+    return list(db.scalars(statement))
+
+
+def _unique_archive_name(original_filename: str, used_names: set[str]) -> str:
+    safe_name = Path(original_filename.replace("\\", "/")).name.replace("\x00", "").strip()
+    if safe_name in {"", ".", ".."}:
+        safe_name = "file"
+    stem = Path(safe_name).stem
+    suffix = Path(safe_name).suffix
+    candidate = safe_name
+    index = 2
+    while candidate.casefold() in used_names:
+        candidate = f"{stem} ({index}){suffix}"
+        index += 1
+    used_names.add(candidate.casefold())
+    return candidate
+
+
+def _manifest_file(document: InvoiceDocument, archive_path: str) -> dict[str, Any]:
+    uploader = document.uploaded_by_user
+    return {
+        "archive_path": archive_path,
+        "document_id": str(document.id),
+        "original_filename": document.original_filename,
+        "document_kind": document.document_kind.value,
+        "content_type": document.content_type,
+        "file_size": document.file_size,
+        "sha256": document.sha256,
+        "uploaded_by": {
+            "id": str(uploader.id),
+            "display_name": uploader.display_name,
+            "email": uploader.email,
+        },
+        "created_at": document.created_at.isoformat() if document.created_at else None,
+    }
 
 
 def _select_invoices(db: Session, user: User, filters: dict[str, Any]) -> list[Invoice]:

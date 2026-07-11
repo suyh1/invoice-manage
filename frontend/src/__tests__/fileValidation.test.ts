@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { estimateBase64Size, validateUploadCandidate } from "../lib/fileValidation";
+import {
+  MAX_PROJECT_FILE_BYTES,
+  estimateBase64Size,
+  validateProjectFileCandidate,
+  validateUploadCandidate,
+} from "../lib/fileValidation";
 
 describe("fileValidation", () => {
   it("accepts supported PNG and PDF files within provider limits", async () => {
@@ -48,6 +53,38 @@ describe("fileValidation", () => {
     await expect(validateUploadCandidate(tooWide)).resolves.toMatchObject({
       accepted: false,
       issues: [expect.objectContaining({ code: "OCR_INVALID_IMAGE_SIZE" })],
+    });
+  });
+
+  it("accepts supported ordinary project files without OCR image limits", async () => {
+    const tinyPng = new File([makePngBytes(10, 10)], "receipt.png", { type: "image/png" });
+    const docx = new File(["package"], "vehicle.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const xlsx = new File(["package"], "rent.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await expect(validateProjectFileCandidate(tinyPng)).resolves.toMatchObject({ accepted: true });
+    await expect(validateProjectFileCandidate(docx)).resolves.toMatchObject({ accepted: true });
+    await expect(validateProjectFileCandidate(xlsx)).resolves.toMatchObject({ accepted: true });
+  });
+
+  it("enforces the 50MB project file limit and matching business formats", async () => {
+    expect(MAX_PROJECT_FILE_BYTES).toBe(50 * 1024 * 1024);
+    const oversized = new File(["x"], "large.pdf", { type: "application/pdf" });
+    Object.defineProperty(oversized, "size", { value: MAX_PROJECT_FILE_BYTES + 1 });
+    const mismatched = new File(["package"], "fake.docx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    await expect(validateProjectFileCandidate(oversized)).resolves.toMatchObject({
+      accepted: false,
+      issues: [expect.objectContaining({ code: "PROJECT_FILE_TOO_LARGE" })],
+    });
+    await expect(validateProjectFileCandidate(mismatched)).resolves.toMatchObject({
+      accepted: false,
+      issues: [expect.objectContaining({ code: "PROJECT_FILE_TYPE_MISMATCH" })],
     });
   });
 });

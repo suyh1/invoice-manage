@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import io
 import hashlib
+import zipfile
 from dataclasses import dataclass
 
-from app.core.config import UPLOAD_VALIDATION_DEFAULTS
+from app.core.config import PROJECT_FILE_MAX_SIZE_BYTES, UPLOAD_VALIDATION_DEFAULTS
 from app.core.errors import AppError
 from app.domain.file.pdf import count_pdf_pages
 
@@ -32,6 +34,10 @@ ALLOWED_CONTENT_TYPES = {
     "jpg": {"image/jpeg", "image/pjpeg"},
     "pdf": {"application/pdf"},
     "gif": {"image/gif"},
+}
+PROJECT_FILE_CONTENT_TYPES = {
+    "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
+    "xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 }
 
 
@@ -103,6 +109,51 @@ def validate_upload(filename: str, content_type: str | None, content: bytes) -> 
     )
 
 
+def validate_project_file_upload(filename: str, content_type: str | None, content: bytes) -> ValidatedUpload:
+    if len(content) > PROJECT_FILE_MAX_SIZE_BYTES:
+        raise AppError("PROJECT_FILE_TOO_LARGE", "The project file exceeds the 50MB limit", status_code=400)
+
+    file_ext = normalize_extension(filename)
+    detected_type = detect_project_file_type(content)
+    if detected_type not in {"png", "jpg", "pdf", "docx", "xlsx"}:
+        raise AppError(
+            "PROJECT_FILE_TYPE_UNSUPPORTED",
+            "Only PDF, PNG, JPG, JPEG, DOCX, and XLSX project files are supported",
+            status_code=400,
+        )
+    if not extension_matches(file_ext, detected_type):
+        raise AppError("PROJECT_FILE_TYPE_MISMATCH", "Project file extension does not match its content", status_code=400)
+    if detected_type in PROJECT_FILE_CONTENT_TYPES:
+        allowed_content_types = PROJECT_FILE_CONTENT_TYPES[detected_type]
+    else:
+        allowed_content_types = ALLOWED_CONTENT_TYPES[detected_type]
+    if content_type and content_type != "application/octet-stream" and content_type not in allowed_content_types:
+        raise AppError("PROJECT_FILE_TYPE_MISMATCH", "Project file MIME type does not match its content", status_code=400)
+
+    image_width: int | None = None
+    image_height: int | None = None
+    page_count = 1
+    if detected_type == "png":
+        image_width, image_height = extract_png_dimensions(content)
+    elif detected_type == "jpg":
+        image_width, image_height = extract_jpeg_dimensions(content)
+    elif detected_type == "pdf":
+        page_count = count_pdf_pages(content)
+
+    return ValidatedUpload(
+        original_filename=filename,
+        content_type=content_type,
+        file_ext=file_ext,
+        file_size=len(content),
+        base64_size=exact_base64_size(len(content)),
+        sha256=hashlib.sha256(content).hexdigest(),
+        page_count=page_count,
+        image_width=image_width,
+        image_height=image_height,
+        content=content,
+    )
+
+
 def normalize_extension(filename: str) -> str:
     parts = filename.rsplit(".", 1)
     if len(parts) != 2 or not parts[1]:
@@ -119,6 +170,24 @@ def detect_file_type(content: bytes) -> str | None:
         return "pdf"
     if any(content.startswith(signature) for signature in GIF_SIGNATURES):
         return "gif"
+    return None
+
+
+def detect_project_file_type(content: bytes) -> str | None:
+    detected = detect_file_type(content)
+    if detected is not None:
+        return detected
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            names = set(archive.namelist())
+    except (OSError, zipfile.BadZipFile):
+        return None
+    if "[Content_Types].xml" not in names:
+        return None
+    if any(name.startswith("word/") for name in names):
+        return "docx"
+    if any(name.startswith("xl/") for name in names):
+        return "xlsx"
     return None
 
 

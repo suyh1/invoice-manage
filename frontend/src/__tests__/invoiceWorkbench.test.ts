@@ -46,4 +46,12 @@ describe("invoice workbench", () => {
       /\.invoice-archive \.project-rail-row\.active \.project-rail-select:focus-visible\s*\{[^}]*box-shadow:\s*inset 0 -2px 0 #fff;/,
     );
   });
+
+  it("provides a project-aware ordinary file view", () => {
+    expect(invoicePage).toContain('"发票"');
+    expect(invoicePage).toContain('"项目文件"');
+    expect(invoicePage).toContain("ProjectFileTable");
+    expect(invoicePage).toContain("document_kind=project_file");
+    expect(invoicePage).toContain("apiDelete");
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canDownloadExport, exportStatusLabel, shouldPollExport, toReexportPayload } from "../lib/exportTasks";
+import { buildExportPayload, canDownloadExport, exportStatusLabel, shouldPollExport, toReexportPayload } from "../lib/exportTasks";
 
 describe("export task helpers", () => {
   it("labels task states and polls only unfinished work", () => {
@@ -26,6 +26,35 @@ describe("export task helpers", () => {
       filters: { project_id: "project-1", status: ["confirmed"] },
       include_items: false,
       include_ocr_meta: true,
+    });
+  });
+
+  it("builds a project-only payload for ZIP packages", () => {
+    expect(buildExportPayload({
+      format: "zip",
+      projectId: "project-1",
+      status: "confirmed",
+      includeItems: true,
+      includeOcrMeta: true,
+    })).toEqual({
+      format: "zip",
+      scope: "project_files",
+      filters: { project_id: "project-1" },
+      include_items: false,
+      include_ocr_meta: false,
+    });
+  });
+
+  it("keeps the project package scope when recreating a ZIP export", () => {
+    expect(toReexportPayload({
+      format: "zip",
+      filters: { project_id: "project-1", scope: "project_files", include_items: false, include_ocr_meta: false },
+    })).toEqual({
+      format: "zip",
+      scope: "project_files",
+      filters: { project_id: "project-1" },
+      include_items: false,
+      include_ocr_meta: false,
     });
   });
 });

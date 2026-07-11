@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.base import Base, import_all_models
 from app.domain.export.models import ExportFormat, ExportStatus, ExportTask
-from app.domain.file.models import DocumentStatus, InvoiceDocument
+from app.domain.file.models import DocumentKind, DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, QuotaSource
 from app.domain.project.models import Project, ProjectStatus, ProjectVisibility
@@ -55,6 +55,7 @@ def test_core_indexes_and_unique_constraints_are_declared() -> None:
     assert "uq_ocr_jobs_idempotency_key" in {constraint.name for constraint in jobs_table.constraints}
     assert "ix_invoice_documents_sha256" in {index.name for index in documents_table.indexes}
     assert documents_table.c.project_id.nullable is False
+    assert documents_table.c.document_kind.nullable is False
     assert "ix_invoice_documents_project_id_created_at" in {index.name for index in documents_table.indexes}
     assert "system_key" in {constraint.name or "" for constraint in projects_table.constraints} or any(
         column.unique for column in projects_table.columns if column.name == "system_key"
@@ -142,6 +143,11 @@ def test_models_create_and_persist_against_postgresql() -> None:
 
         saved_invoice = session.get(Invoice, invoice.id)
         assert saved_invoice is not None
+        assert saved_invoice.document.document_kind == DocumentKind.invoice
         assert saved_invoice.document.sha256 == "a" * 64
         assert saved_invoice.items[0].name == "Service"
         assert saved_invoice.latest_ocr_job.request_id is None
+
+
+def test_document_kind_distinguishes_invoice_and_project_files() -> None:
+    assert {kind.value for kind in DocumentKind} == {"invoice", "project_file"}

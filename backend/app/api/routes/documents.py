@@ -2,22 +2,23 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import get_current_user
 from app.core.audit import record_audit_log
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import get_db
-from app.domain.file.models import DocumentStatus, InvoiceDocument
+from app.domain.file.models import DocumentKind, DocumentStatus, InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
-from app.domain.file.validators import ValidatedUpload, validate_upload
+from app.domain.file.validators import ValidatedUpload, validate_project_file_upload, validate_upload
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig
 from app.domain.project.service import ProjectService
 from app.domain.user.models import User, UserRole
@@ -26,6 +27,31 @@ from app.workers.tasks import process_ocr_job_task
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
+
+
+@router.get("")
+def list_documents(
+    document_kind: DocumentKind = DocumentKind.project_file,
+    project_id: UUID | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, list[dict[str, Any]]]:
+    if document_kind != DocumentKind.project_file:
+        raise AppError("PROJECT_FILE_REQUIRED", "Only project files can be listed here", status_code=409)
+    statement = (
+        select(InvoiceDocument)
+        .options(selectinload(InvoiceDocument.project), selectinload(InvoiceDocument.uploaded_by_user))
+        .where(
+            InvoiceDocument.document_kind == DocumentKind.project_file,
+            InvoiceDocument.status != DocumentStatus.deleted,
+        )
+        .order_by(InvoiceDocument.created_at.desc(), InvoiceDocument.id.desc())
+    )
+    if project_id is not None:
+        statement = statement.where(InvoiceDocument.project_id == project_id)
+    if current_user.role not in {UserRole.finance, UserRole.admin}:
+        statement = statement.where(InvoiceDocument.uploaded_by == current_user.id)
+    return {"data": [_serialize_project_file(document) for document in db.scalars(statement)]}
 
 
 @router.get("/{document_id}/preview", response_class=FileResponse)
@@ -46,19 +72,56 @@ def download_document(
     return _document_file_response(db, document_id, current_user, disposition="attachment")
 
 
+@router.delete("/{document_id}")
+def delete_project_file(
+    document_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, dict[str, bool]]:
+    document = _get_document(db, document_id)
+    if document.document_kind != DocumentKind.project_file:
+        raise AppError("PROJECT_FILE_REQUIRED", "Only project files can be deleted here", status_code=409)
+    _assert_document_access(document, current_user)
+    document.status = DocumentStatus.deleted
+    document.deleted_at = datetime.now(UTC)
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="document.delete",
+        resource_type="project_file",
+        resource_id=document.id,
+        metadata={"original_filename": document.original_filename, "project_id": str(document.project_id)},
+        request=request,
+    )
+    db.commit()
+    return {"data": {"ok": True}}
+
+
 @router.post("")
 async def upload_document(
     request: Request,
     file: UploadFile = File(...),
     scene: str | None = Form(default=None),
     project_id: UUID | None = Form(default=None),
+    document_kind: DocumentKind = Form(default=DocumentKind.invoice),
     auto_ocr: bool = Form(default=True),
     idempotency_key: str | None = Form(default=None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, dict[str, Any]]:
     content = await file.read()
-    validated = validate_upload(file.filename or "upload.bin", file.content_type, content)
+    if document_kind == DocumentKind.project_file and project_id is None:
+        raise AppError(
+            "PROJECT_FILE_PROJECT_REQUIRED",
+            "Project files must be assigned to a project",
+            status_code=400,
+        )
+    validated = (
+        validate_project_file_upload(file.filename or "upload.bin", file.content_type, content)
+        if document_kind == DocumentKind.project_file
+        else validate_upload(file.filename or "upload.bin", file.content_type, content)
+    )
     project = ProjectService().get_assignable_project(db, project_id, current_user)
     storage = LocalFileStorage(get_settings().storage_path)
     storage_key = storage.save(validated)
@@ -66,6 +129,7 @@ async def upload_document(
     document = InvoiceDocument(
         uploaded_by=current_user.id,
         project=project,
+        document_kind=document_kind,
         original_filename=validated.original_filename,
         content_type=validated.content_type or "application/octet-stream",
         file_ext=validated.file_ext,
@@ -76,13 +140,13 @@ async def upload_document(
         page_count=validated.page_count,
         image_width=validated.image_width,
         image_height=validated.image_height,
-        expense_scene=scene.strip() if scene and scene.strip() else None,
+        expense_scene=(scene.strip() if scene and scene.strip() else None) if document_kind == DocumentKind.invoice else None,
         status=DocumentStatus.uploaded,
     )
     db.add(document)
 
     ocr_job: OcrJob | None = None
-    if auto_ocr:
+    if auto_ocr and document_kind == DocumentKind.invoice:
         document.status = DocumentStatus.ocr_queued
         ocr_job = build_ocr_job(document, validated, idempotency_key=idempotency_key)
         db.add(ocr_job)
@@ -100,6 +164,7 @@ async def upload_document(
             "file_size": document.file_size,
             "sha256": document.sha256,
             "auto_ocr": auto_ocr,
+            "document_kind": document.document_kind.value,
             "project_id": str(project.id),
             "scene": document.expense_scene,
             "ocr_job_id": str(ocr_job.id) if ocr_job else None,
@@ -119,6 +184,7 @@ async def upload_document(
             "document_id": str(document.id),
             "ocr_job_id": str(ocr_job.id) if ocr_job is not None else None,
             "status": document.status.value,
+            "document_kind": document.document_kind.value,
             "sha256": document.sha256,
             "project": {
                 "id": str(project.id),
@@ -139,11 +205,8 @@ def _document_file_response(
     *,
     disposition: str,
 ) -> FileResponse:
-    document = db.get(InvoiceDocument, document_id)
-    if document is None or document.status == DocumentStatus.deleted:
-        raise AppError("DOCUMENT_NOT_FOUND", "Document was not found", status_code=404)
-    if current_user.role not in {UserRole.finance, UserRole.admin} and str(document.uploaded_by) != str(current_user.id):
-        raise AppError("AUTH_FORBIDDEN", "You do not have permission to access this document", status_code=403)
+    document = _get_document(db, document_id)
+    _assert_document_access(document, current_user)
 
     try:
         path = LocalFileStorage(get_settings().storage_path).path_for(document.storage_key)
@@ -157,6 +220,43 @@ def _document_file_response(
         filename=document.original_filename,
         content_disposition_type=disposition,
     )
+
+
+def _get_document(db: Session, document_id: UUID) -> InvoiceDocument:
+    document = db.get(InvoiceDocument, document_id)
+    if document is None or document.status == DocumentStatus.deleted:
+        raise AppError("DOCUMENT_NOT_FOUND", "Document was not found", status_code=404)
+    return document
+
+
+def _assert_document_access(document: InvoiceDocument, current_user: User) -> None:
+    if current_user.role in {UserRole.finance, UserRole.admin}:
+        return
+    if str(document.uploaded_by) == str(current_user.id):
+        return
+    raise AppError("AUTH_FORBIDDEN", "You do not have permission to access this document", status_code=403)
+
+
+def _serialize_project_file(document: InvoiceDocument) -> dict[str, Any]:
+    return {
+        "id": str(document.id),
+        "document_kind": document.document_kind.value,
+        "original_filename": document.original_filename,
+        "content_type": document.content_type,
+        "file_ext": document.file_ext,
+        "file_size": document.file_size,
+        "sha256": document.sha256,
+        "created_at": document.created_at.isoformat() if document.created_at else None,
+        "project": {
+            "id": str(document.project.id),
+            "name": document.project.name,
+        },
+        "uploaded_by_user": {
+            "id": str(document.uploaded_by_user.id),
+            "display_name": document.uploaded_by_user.display_name,
+            "email": document.uploaded_by_user.email,
+        },
+    }
 
 
 def build_ocr_job(

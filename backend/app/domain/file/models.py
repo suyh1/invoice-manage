@@ -19,6 +19,11 @@ class DocumentStatus(str, enum.Enum):
     deleted = "deleted"
 
 
+class DocumentKind(str, enum.Enum):
+    invoice = "invoice"
+    project_file = "project_file"
+
+
 class InvoiceDocument(Base):
     __tablename__ = "invoice_documents"
 
@@ -26,6 +31,11 @@ class InvoiceDocument(Base):
     workspace_id: Mapped[UUID | None]
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False)
     uploaded_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    document_kind: Mapped[DocumentKind] = mapped_column(
+        Enum(DocumentKind, name="document_kind", native_enum=False, create_constraint=True),
+        default=DocumentKind.invoice,
+        nullable=False,
+    )
     original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
     content_type: Mapped[str] = mapped_column(String(120), nullable=False)
     file_ext: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -53,6 +63,7 @@ class InvoiceDocument(Base):
     __table_args__ = (
         Index("ix_invoice_documents_uploaded_by_created_at", "uploaded_by", "created_at"),
         Index("ix_invoice_documents_project_id_created_at", "project_id", "created_at"),
+        Index("ix_invoice_documents_project_kind_created_at", "project_id", "document_kind", "created_at"),
         Index("ix_invoice_documents_sha256", "sha256"),
         Index("ix_invoice_documents_status_created_at", "status", "created_at"),
     )

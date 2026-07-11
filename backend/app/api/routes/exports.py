@@ -90,5 +90,6 @@ def download_export(
         "json": "application/json",
         "csv": "text/csv; charset=utf-8",
         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "zip": "application/zip",
     }.get(task.format.value, "application/octet-stream")
     return FileResponse(path, media_type=media_type, filename=path.name)

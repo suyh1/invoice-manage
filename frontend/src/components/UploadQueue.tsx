@@ -26,11 +26,13 @@ const statusCopy: Record<UploadQueueStatus, string> = {
 
 export function UploadQueue({
   items,
+  mode = "invoice",
   onRemove,
   onRetry,
   onUploadReady,
 }: {
   items: UploadQueueItem[];
+  mode?: "invoice" | "project_file";
   onRemove: (id: string) => void;
   onRetry: (id: string) => void;
   onUploadReady: (id: string) => void;
@@ -40,7 +42,7 @@ export function UploadQueue({
       <section className="surface-panel empty-upload-queue">
         <span className="section-label">上传队列</span>
         <strong>等待添加文件</strong>
-        <p>文件会先在本地校验，通过后再发送到后端创建 OCR 作业。</p>
+        <p>{mode === "project_file" ? "文件会先在本地校验，通过后直接归档到项目。" : "文件会先在本地校验，通过后再发送到后端创建 OCR 作业。"}</p>
       </section>
     );
   }

@@ -3,8 +3,9 @@ import { Archive, Folder, FolderLock, FolderPlus, Pencil, RotateCcw, Users } fro
 
 import { useAuth } from "../auth/AuthContext";
 import { InvoiceTable, type InvoiceSummary } from "../components/InvoiceTable";
+import { ProjectFileTable, type ProjectFileSummary } from "../components/ProjectFileTable";
 import { ProjectEditorDialog, type ProjectDialogAction } from "../components/ProjectEditorDialog";
-import { ApiError, apiGet, apiPatch, apiPost } from "../lib/api";
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "../lib/api";
 import { projectCreationModes } from "../lib/permissions";
 import { groupProjects, type ProjectSummary } from "../lib/projects";
 
@@ -47,16 +48,25 @@ type InvoiceRouteParams = {
   sellerName?: string;
 };
 
+type ArchiveContentView = "invoices" | "project_files";
+const archiveContentLabels: Record<ArchiveContentView, string> = {
+  invoices: "发票",
+  project_files: "项目文件",
+};
+
 export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRouteParams }) {
   const auth = useAuth();
   const [filters, setFilters] = useState<InvoiceFilters>(() => initialInvoiceFilters(routeParams));
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
+  const [projectFiles, setProjectFiles] = useState<ProjectFileSummary[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [contentView, setContentView] = useState<ArchiveContentView>("invoices");
   const [message, setMessage] = useState("");
   const [projectErrorMessage, setProjectErrorMessage] = useState<string | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [dialogAction, setDialogAction] = useState<ProjectDialogAction | null>(null);
   const [busyProjectId, setBusyProjectId] = useState<string | null>(null);
+  const [busyFileId, setBusyFileId] = useState<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   const query = useMemo(() => buildQuery(filters), [filters]);
@@ -74,6 +84,7 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
   }, []);
 
   useEffect(() => {
+    if (contentView !== "invoices") return;
     let cancelled = false;
     setStatus("loading");
     apiGet<InvoiceListResponse>(`/api/v1/invoices${query}`)
@@ -93,7 +104,24 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
     return () => {
       cancelled = true;
     };
-  }, [query]);
+  }, [contentView, query]);
+
+  const loadProjectFiles = useCallback(async () => {
+    setStatus("loading");
+    const projectQuery = filters.project_id ? `&project_id=${encodeURIComponent(filters.project_id)}` : "";
+    try {
+      setProjectFiles(await apiGet<ProjectFileSummary[]>(`/api/v1/documents?document_kind=project_file${projectQuery}`));
+      setStatus("ready");
+      setMessage("");
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof ApiError ? error.message : "无法加载项目文件。");
+    }
+  }, [filters.project_id]);
+
+  useEffect(() => {
+    if (contentView === "project_files") void loadProjectFiles();
+  }, [contentView, loadProjectFiles]);
 
   useEffect(() => {
     void loadProjects();
@@ -152,6 +180,19 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
     }
   }
 
+  async function deleteProjectFile(documentId: string) {
+    setBusyFileId(documentId);
+    setMessage("");
+    try {
+      await apiDelete<{ ok: boolean }>(`/api/v1/documents/${documentId}`);
+      await loadProjectFiles();
+    } catch (error) {
+      setMessage(error instanceof ApiError ? error.message : "无法删除项目文件。");
+    } finally {
+      setBusyFileId(null);
+    }
+  }
+
   return (
     <div className="invoice-workbench invoice-archive">
       <aside className="project-rail project-index" aria-label="项目导航">
@@ -182,7 +223,7 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
           type="button"
         >
           <Folder aria-hidden="true" size={17} />
-          <span>全部发票</span>
+          <span>{contentView === "invoices" ? "全部发票" : "全部项目文件"}</span>
         </button>
 
         <div className="project-rail-sections">
@@ -236,24 +277,36 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
         <header className="invoice-list-header archive-heading">
           <div>
             <span className="section-label">INVOICE ARCHIVE / 发票档案</span>
-            <h2>{selectedProject?.name || "全部发票"}</h2>
-            <p>{selectedProject?.description || "按项目组织、筛选，并追踪每一张发票从原件到数据的完整路径。"}</p>
+            <h2>{selectedProject?.name || (contentView === "invoices" ? "全部发票" : "全部项目文件")}</h2>
+            <p>{selectedProject?.description || (contentView === "invoices"
+              ? "按项目组织、筛选，并追踪每一张发票从原件到数据的完整路径。"
+              : "集中管理无需识别的票据、合同和项目附件。")}</p>
           </div>
         </header>
 
         <div className="archive-viewbar-row">
-          <span className="archive-viewbar-label">SAVED VIEWS / 常用视图</span>
-          <div className="saved-view-bar" aria-label="常用视图">
-            {savedViews.map((view) => (
-              <button className={`button secondary ${isSavedViewActive(view.filters) ? "active" : ""}`} key={view.label} onClick={() => applySavedView(view.filters)} type="button">
-                {view.label}
-              </button>
-            ))}
+          <div className="archive-content-switch" aria-label="档案内容">
+            <button className={contentView === "invoices" ? "active" : ""} onClick={() => setContentView("invoices")} type="button">{archiveContentLabels.invoices}</button>
+            <button className={contentView === "project_files" ? "active" : ""} onClick={() => setContentView("project_files")} type="button">{archiveContentLabels.project_files}</button>
           </div>
-          <span className="archive-result-note">{invoices.length} 张 · {selectedProject?.name || "全部发票"}</span>
+          {contentView === "invoices" ? (
+            <>
+              <span className="archive-viewbar-label">SAVED VIEWS / 常用视图</span>
+              <div className="saved-view-bar" aria-label="常用视图">
+                {savedViews.map((view) => (
+                  <button className={`button secondary ${isSavedViewActive(view.filters) ? "active" : ""}`} key={view.label} onClick={() => applySavedView(view.filters)} type="button">
+                    {view.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
+          <span className="archive-result-note">
+            {contentView === "invoices" ? `${invoices.length} 张` : `${projectFiles.length} 个文件`} · {selectedProject?.name || "全部项目"}
+          </span>
         </div>
 
-        <section className="surface-panel invoice-filters archive-toolbar" aria-label="发票筛选">
+        {contentView === "invoices" ? <section className="surface-panel invoice-filters archive-toolbar" aria-label="发票筛选">
           <label>
             搜索
             <input
@@ -301,17 +354,21 @@ export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRoutePar
               <option value="transport">交通</option>
             </select>
           </label>
-        </section>
+        </section> : null}
 
         <section className="surface-panel invoice-list-panel invoice-archive-ledger">
           <div className="panel-heading">
             <div>
               <span className="section-label">查询结果</span>
-              <h2>{status === "loading" ? "加载中" : `${invoices.length} 张发票`}</h2>
+              <h2>{status === "loading" ? "加载中" : contentView === "invoices" ? `${invoices.length} 张发票` : `${projectFiles.length} 个项目文件`}</h2>
             </div>
             {message ? <span className="status-token danger">{message}</span> : null}
           </div>
-          <InvoiceTable invoices={invoices} />
+          {contentView === "invoices" ? (
+            <InvoiceTable invoices={invoices} />
+          ) : (
+            <ProjectFileTable busyId={busyFileId} files={projectFiles} onDelete={(id) => void deleteProjectFile(id)} />
+          )}
         </section>
       </div>
 

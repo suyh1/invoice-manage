@@ -1,4 +1,7 @@
+import io
+import zipfile
 from datetime import UTC, datetime
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,12 +10,12 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.routes.documents import find_default_ocr_provider
-from app.core.config import UPLOAD_VALIDATION_DEFAULTS, Settings
+from app.core.config import PROJECT_FILE_MAX_SIZE_BYTES, UPLOAD_VALIDATION_DEFAULTS, Settings
 from app.db.base import Base, import_all_models
 from app.db.session import get_db
-from app.domain.file.models import InvoiceDocument
+from app.domain.file.models import DocumentKind, InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
-from app.domain.file.validators import validate_upload
+from app.domain.file.validators import validate_project_file_upload, validate_upload
 from app.domain.project.models import ProjectVisibility
 from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, User, UserRole
@@ -66,6 +69,14 @@ def make_pdf_bytes(page_count: int) -> bytes:
         + b"".join(page_objects)
         + b"%%EOF\n"
     )
+
+
+def make_ooxml_bytes(kind: str) -> bytes:
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        archive.writestr("[Content_Types].xml", "<Types />")
+        archive.writestr(f"{kind}/document.xml" if kind == "word" else "xl/workbook.xml", "<root />")
+    return output.getvalue()
 
 
 @pytest.fixture()
@@ -139,6 +150,48 @@ def test_validate_upload_accepts_multi_page_pdf_for_page_number_recognition() ->
 
     assert validated.file_ext == "pdf"
     assert validated.page_count == 2
+
+
+@pytest.mark.parametrize(
+    ("filename", "content_type", "content", "expected_ext"),
+    [
+        ("receipt.pdf", "application/pdf", make_pdf_bytes(2), "pdf"),
+        ("photo.png", "image/png", make_png_bytes(10, 10), "png"),
+        ("photo.jpeg", "image/jpeg", make_jpeg_bytes(10, 10), "jpeg"),
+        (
+            "contract.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            make_ooxml_bytes("word"),
+            "docx",
+        ),
+        (
+            "records.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            make_ooxml_bytes("xl"),
+            "xlsx",
+        ),
+    ],
+)
+def test_validate_project_file_accepts_business_formats(filename, content_type, content, expected_ext) -> None:
+    validated = validate_project_file_upload(filename, content_type, content)
+
+    assert validated.file_ext == expected_ext
+
+
+def test_validate_project_file_rejects_mismatches_executables_and_files_over_50mb(monkeypatch) -> None:
+    with pytest.raises(Exception) as mismatch:
+        validate_project_file_upload("fake.docx", "application/octet-stream", make_ooxml_bytes("xl"))
+    assert getattr(mismatch.value, "code") == "PROJECT_FILE_TYPE_MISMATCH"
+
+    with pytest.raises(Exception) as executable:
+        validate_project_file_upload("tool.exe", "application/octet-stream", b"MZ" + b"x" * 10)
+    assert getattr(executable.value, "code") == "PROJECT_FILE_TYPE_UNSUPPORTED"
+
+    assert PROJECT_FILE_MAX_SIZE_BYTES == 50 * 1024 * 1024
+    monkeypatch.setattr("app.domain.file.validators.PROJECT_FILE_MAX_SIZE_BYTES", 100)
+    with pytest.raises(Exception) as oversized:
+        validate_project_file_upload("large.pdf", "application/pdf", make_pdf_bytes(1) + b"x" * 101)
+    assert getattr(oversized.value, "code") == "PROJECT_FILE_TOO_LARGE"
 
 
 def test_local_file_storage_writes_under_year_month_and_sha(tmp_path) -> None:
@@ -283,6 +336,64 @@ def test_upload_document_assigns_visible_project_and_scene(
     assert forbidden.json()["error"]["code"] == "PROJECT_FORBIDDEN"
 
 
+def test_upload_project_file_requires_project_and_never_creates_ocr(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    owner = create_user(
+        db_session,
+        email="project-file-owner@example.com",
+        password="password",
+        display_name="Project File Owner",
+        role=UserRole.user,
+    )
+    project = ProjectService().create_project(
+        db_session,
+        owner,
+        {"name": "车辆资料", "visibility": ProjectVisibility.private.value},
+    )
+    db_session.commit()
+    client.cookies.set("session", create_session_token(owner.id))
+    monkeypatch.setattr(
+        "app.api.routes.documents.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            STORAGE_PATH=str(tmp_path),
+            APP_SECRET_KEY="dev-secret-change-me",
+            OCR_CONFIG_ENCRYPTION_KEY="dev-ocr-config-encryption-key-change-me",
+        ),
+    )
+
+    missing_project = client.post(
+        "/api/v1/documents",
+        data={"document_kind": "project_file", "auto_ocr": "true"},
+        files={"file": ("vehicle.docx", make_ooxml_bytes("word"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+    assert missing_project.status_code == 400
+    assert missing_project.json()["error"]["code"] == "PROJECT_FILE_PROJECT_REQUIRED"
+
+    uploaded = client.post(
+        "/api/v1/documents",
+        data={
+            "document_kind": "project_file",
+            "auto_ocr": "true",
+            "project_id": str(project.id),
+            "scene": "travel",
+        },
+        files={"file": ("vehicle.docx", make_ooxml_bytes("word"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+    )
+
+    assert uploaded.status_code == 200
+    assert uploaded.json()["data"]["document_kind"] == "project_file"
+    assert uploaded.json()["data"]["ocr_job_id"] is None
+    saved = db_session.query(InvoiceDocument).one()
+    assert saved.document_kind == DocumentKind.project_file
+    assert saved.expense_scene is None
+    assert saved.ocr_jobs == []
+
+
 def test_document_preview_and_download_require_owner_access(
     client: TestClient,
     db_session: Session,
@@ -336,3 +447,90 @@ def test_document_preview_and_download_require_owner_access(
     forbidden = client.get(f"/api/v1/documents/{document_id}/preview")
     assert forbidden.status_code == 403
     assert forbidden.json()["error"]["code"] == "AUTH_FORBIDDEN"
+
+
+def test_project_file_list_and_soft_delete_follow_document_permissions(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    finance = create_user(
+        db_session,
+        email="files-finance@example.com",
+        password="password",
+        display_name="Files Finance",
+        role=UserRole.finance,
+    )
+    owner = create_user(
+        db_session,
+        email="files-owner@example.com",
+        password="password",
+        display_name="Files Owner",
+        role=UserRole.user,
+    )
+    other = create_user(
+        db_session,
+        email="files-other@example.com",
+        password="password",
+        display_name="Files Other",
+        role=UserRole.user,
+    )
+    project = ProjectService().create_project(
+        db_session,
+        finance,
+        {"name": "共享车辆项目", "visibility": ProjectVisibility.shared.value},
+    )
+    db_session.commit()
+    monkeypatch.setattr(
+        "app.api.routes.documents.get_settings",
+        lambda: Settings(
+            _env_file=None,
+            STORAGE_PATH=str(tmp_path),
+            APP_SECRET_KEY="dev-secret-change-me",
+            OCR_CONFIG_ENCRYPTION_KEY="dev-ocr-config-encryption-key-change-me",
+        ),
+    )
+
+    def upload_as(user: User, filename: str, document_kind: str = "project_file") -> str:
+        client.cookies.set("session", create_session_token(user.id))
+        response = client.post(
+            "/api/v1/documents",
+            data={
+                "document_kind": document_kind,
+                "auto_ocr": "false",
+                "project_id": str(project.id),
+            },
+            files={"file": (filename, make_pdf_bytes(1), "application/pdf")},
+        )
+        assert response.status_code == 200
+        return response.json()["data"]["document_id"]
+
+    owner_file_id = upload_as(owner, "owner-receipt.pdf")
+    other_file_id = upload_as(other, "other-receipt.pdf")
+    invoice_document_id = upload_as(owner, "invoice.pdf", "invoice")
+
+    client.cookies.set("session", create_session_token(owner.id))
+    owner_list = client.get(f"/api/v1/documents?document_kind=project_file&project_id={project.id}")
+    assert owner_list.status_code == 200
+    assert [item["id"] for item in owner_list.json()["data"]] == [owner_file_id]
+    assert owner_list.json()["data"][0]["uploaded_by_user"]["display_name"] == "Files Owner"
+    assert owner_list.json()["data"][0]["project"]["name"] == "共享车辆项目"
+
+    forbidden_delete = client.delete(f"/api/v1/documents/{other_file_id}")
+    assert forbidden_delete.status_code == 403
+    assert forbidden_delete.json()["error"]["code"] == "AUTH_FORBIDDEN"
+
+    invoice_delete = client.delete(f"/api/v1/documents/{invoice_document_id}")
+    assert invoice_delete.status_code == 409
+    assert invoice_delete.json()["error"]["code"] == "PROJECT_FILE_REQUIRED"
+
+    deleted = client.delete(f"/api/v1/documents/{owner_file_id}")
+    assert deleted.status_code == 200
+    assert deleted.json()["data"] == {"ok": True}
+    assert db_session.get(InvoiceDocument, UUID(owner_file_id)).status.value == "deleted"
+
+    client.cookies.set("session", create_session_token(finance.id))
+    finance_list = client.get(f"/api/v1/documents?document_kind=project_file&project_id={project.id}")
+    assert finance_list.status_code == 200
+    assert [item["id"] for item in finance_list.json()["data"]] == [other_file_id]

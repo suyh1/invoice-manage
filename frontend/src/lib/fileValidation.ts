@@ -2,7 +2,10 @@ export type UploadValidationCode =
   | "OCR_UNSUPPORTED_FILE_TYPE"
   | "OCR_GIF_NOT_SUPPORTED"
   | "OCR_FILE_TOO_LARGE"
-  | "OCR_INVALID_IMAGE_SIZE";
+  | "OCR_INVALID_IMAGE_SIZE"
+  | "PROJECT_FILE_TYPE_UNSUPPORTED"
+  | "PROJECT_FILE_TYPE_MISMATCH"
+  | "PROJECT_FILE_TOO_LARGE";
 
 export type UploadValidationIssue = {
   code: UploadValidationCode;
@@ -26,6 +29,15 @@ const MIN_IMAGE_DIMENSION = 20;
 const MAX_IMAGE_DIMENSION = 10_000;
 const SUPPORTED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "pdf"]);
 const SUPPORTED_MIME_TYPES = new Set(["image/png", "image/jpeg", "application/pdf"]);
+export const MAX_PROJECT_FILE_BYTES = 50 * 1024 * 1024;
+const PROJECT_FILE_TYPES: Record<string, Set<string>> = {
+  docx: new Set(["application/vnd.openxmlformats-officedocument.wordprocessingml.document"]),
+  jpeg: new Set(["image/jpeg"]),
+  jpg: new Set(["image/jpeg"]),
+  pdf: new Set(["application/pdf"]),
+  png: new Set(["image/png"]),
+  xlsx: new Set(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]),
+};
 
 export function estimateBase64Size(byteSize: number) {
   return Math.ceil(byteSize / 3) * 4;
@@ -84,6 +96,46 @@ export async function validateUploadCandidate(file: File): Promise<UploadValidat
       extension,
       imageHeight,
       imageWidth,
+    },
+  };
+}
+
+export async function validateProjectFileCandidate(file: File): Promise<UploadValidationResult> {
+  const extension = getExtension(file.name);
+  const base64Size = estimateBase64Size(file.size);
+  const issues: UploadValidationIssue[] = [];
+  const allowedMimeTypes = PROJECT_FILE_TYPES[extension];
+
+  if (!allowedMimeTypes) {
+    issues.push({
+      code: "PROJECT_FILE_TYPE_UNSUPPORTED",
+      message: "仅支持 PDF、PNG、JPG、JPEG、DOCX 或 XLSX 项目文件。",
+      severity: "error",
+    });
+  } else if (file.type && file.type !== "application/octet-stream" && !allowedMimeTypes.has(file.type)) {
+    issues.push({
+      code: "PROJECT_FILE_TYPE_MISMATCH",
+      message: "文件扩展名与文件类型不一致，请检查后重新选择。",
+      severity: "error",
+    });
+  }
+
+  if (file.size > MAX_PROJECT_FILE_BYTES) {
+    issues.push({
+      code: "PROJECT_FILE_TOO_LARGE",
+      message: "项目文件不能超过 50MB。",
+      severity: "error",
+    });
+  }
+
+  return {
+    accepted: issues.length === 0,
+    issues,
+    metadata: {
+      base64Size,
+      extension,
+      imageHeight: null,
+      imageWidth: null,
     },
   };
 }
