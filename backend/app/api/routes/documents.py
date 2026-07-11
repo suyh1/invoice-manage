@@ -6,24 +6,44 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.core.audit import record_audit_log
 from app.core.config import get_settings
+from app.core.errors import AppError
 from app.db.session import get_db
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.file.storage import LocalFileStorage
 from app.domain.file.validators import ValidatedUpload, validate_upload
 from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig
 from app.domain.project.service import ProjectService
-from app.domain.user.models import User
+from app.domain.user.models import User, UserRole
 from app.workers.tasks import process_ocr_job_task
 
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
+
+
+@router.get("/{document_id}/preview", response_class=FileResponse)
+def preview_document(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    return _document_file_response(db, document_id, current_user, disposition="inline")
+
+
+@router.get("/{document_id}/download", response_class=FileResponse)
+def download_document(
+    document_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    return _document_file_response(db, document_id, current_user, disposition="attachment")
 
 
 @router.post("")
@@ -110,6 +130,33 @@ async def upload_document(
 
 def find_default_ocr_provider(db: Session) -> OcrProviderConfig | None:
     return db.scalar(select(OcrProviderConfig).where(OcrProviderConfig.enabled.is_(True), OcrProviderConfig.is_default.is_(True)))
+
+
+def _document_file_response(
+    db: Session,
+    document_id: UUID,
+    current_user: User,
+    *,
+    disposition: str,
+) -> FileResponse:
+    document = db.get(InvoiceDocument, document_id)
+    if document is None or document.status == DocumentStatus.deleted:
+        raise AppError("DOCUMENT_NOT_FOUND", "Document was not found", status_code=404)
+    if current_user.role not in {UserRole.finance, UserRole.admin} and str(document.uploaded_by) != str(current_user.id):
+        raise AppError("AUTH_FORBIDDEN", "You do not have permission to access this document", status_code=403)
+
+    try:
+        path = LocalFileStorage(get_settings().storage_path).path_for(document.storage_key)
+    except ValueError as exc:
+        raise AppError("DOCUMENT_STORAGE_INVALID", "Document storage path is invalid", status_code=500) from exc
+    if not path.is_file():
+        raise AppError("DOCUMENT_FILE_MISSING", "Document file is missing from storage", status_code=404)
+    return FileResponse(
+        path,
+        media_type=document.content_type,
+        filename=document.original_filename,
+        content_disposition_type=disposition,
+    )
 
 
 def build_ocr_job(

@@ -10,7 +10,6 @@ describe("visibleNavigationIds", () => {
       "upload",
       "review",
       "exports",
-      "projects",
     ]);
     expect(visibleNavigationIds("finance")).toEqual([
       "dashboard",
@@ -18,7 +17,6 @@ describe("visibleNavigationIds", () => {
       "upload",
       "review",
       "exports",
-      "projects",
     ]);
   });
 
@@ -29,7 +27,6 @@ describe("visibleNavigationIds", () => {
       "upload",
       "review",
       "exports",
-      "projects",
       "users",
       "settings",
     ]);

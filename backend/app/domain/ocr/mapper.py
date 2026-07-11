@@ -21,33 +21,40 @@ class TencentVatInvoiceMapper:
         "发票代码": ("invoice_code", "string"),
         "发票号码": ("invoice_number", "string"),
         "开票日期": ("invoice_date", "date"),
+        "发票名称": ("invoice_type", "string"),
+        "发票类型": ("invoice_type", "string"),
         "购买方名称": ("buyer_name", "string"),
         "购买方识别号": ("buyer_tax_id", "string"),
+        "购买方纳税人识别号": ("buyer_tax_id", "string"),
+        "购买方统一社会信用代码/纳税人识别号": ("buyer_tax_id", "string"),
         "销售方名称": ("seller_name", "string"),
         "销售方识别号": ("seller_tax_id", "string"),
+        "销售方纳税人识别号": ("seller_tax_id", "string"),
+        "销售方统一社会信用代码/纳税人识别号": ("seller_tax_id", "string"),
         "合计金额": ("amount_without_tax", "amount"),
         "合计税额": ("tax_amount", "amount"),
         "小写金额": ("amount_with_tax", "amount"),
         "价税合计": ("amount_with_tax", "amount"),
+        "价税合计(小写)": ("amount_with_tax", "amount"),
+        "价税合计（小写）": ("amount_with_tax", "amount"),
         "校验码": ("check_code", "string"),
-        "发票类型": ("invoice_type", "string"),
     }
 
     item_field_map = {
         "Name": ("name", "string"),
-        "Specification": ("specification", "string"),
         "Spec": ("specification", "string"),
         "Unit": ("unit", "string"),
         "Quantity": ("quantity", "quantity"),
         "UnitPrice": ("unit_price", "quantity"),
-        "Amount": ("amount", "amount"),
+        "AmountWithoutTax": ("amount", "amount"),
         "TaxRate": ("tax_rate", "tax_rate"),
-        "Tax": ("tax_amount", "amount"),
         "TaxAmount": ("tax_amount", "amount"),
     }
 
     def map(self, raw_response: dict[str, Any]) -> MappedOcrInvoice:
         invoice_fields: dict[str, Any] = {}
+        field_sources: dict[str, dict[str, Any]] = {}
+        supplemental_fields: list[dict[str, str]] = []
         unknown_infos: dict[str, Any] = {}
         unparsed_fields: dict[str, Any] = {}
 
@@ -55,16 +62,27 @@ class TencentVatInvoiceMapper:
             if not isinstance(info, dict):
                 continue
             name = _clean_string(info.get("Name"))
-            value = _clean_string(info.get("Value"))
-            if not name or value is None:
+            if not name:
                 continue
 
             field_spec = self.field_map.get(name)
             if field_spec is None:
+                value = _clean_string(info.get("Value"))
+                if value is None:
+                    continue
                 unknown_infos[name] = value
+                supplemental_fields.append(
+                    {"group": _supplemental_group(name), "name": name, "value": value}
+                )
                 continue
 
             field_name, field_type = field_spec
+            value = _clean_string(info.get("Value"))
+            current_source = field_sources.get(field_name)
+            if current_source is None or (current_source["value"] is None and value is not None):
+                field_sources[field_name] = {"name": name, "value": value}
+            if value is None:
+                continue
             parsed = _parse_typed_value(value, field_type)
             if parsed is None:
                 unparsed_fields[name] = value
@@ -81,11 +99,12 @@ class TencentVatInvoiceMapper:
 
         normalized_payload = {
             "invoice_fields": _json_safe(invoice_fields),
+            "field_sources": _json_safe(field_sources),
+            "supplemental_fields": supplemental_fields,
             "items": [_json_safe({key: value for key, value in item.items() if key != "raw_item_json"}) for item in items],
             "ocr_meta": {
                 "request_id": raw_response.get("RequestId"),
                 "pdf_page_size": raw_response.get("PdfPageSize"),
-                "angle": raw_response.get("Angle"),
             },
             "extra_fields": _json_safe(extra_fields),
         }
@@ -117,6 +136,20 @@ class TencentVatInvoiceMapper:
                 item[field_name] = parsed
             items.append(item)
         return items
+
+
+def _supplemental_group(name: str) -> str:
+    if name.startswith("购买方"):
+        return "购买方补充信息"
+    if name.startswith("销售方"):
+        return "销售方补充信息"
+    if name in {"价税合计(大写)", "价税合计（大写）", "小计金额", "小计税额", "税率", "车船税"}:
+        return "金额与校验"
+    if name in {"开票人", "收款人", "复核", "备注"}:
+        return "经办与备注"
+    if "校验码" in name:
+        return "金额与校验"
+    return "其他识别信息"
 
 
 def _parse_typed_value(value: str, field_type: str) -> Any:

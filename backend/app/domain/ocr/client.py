@@ -98,7 +98,10 @@ class TencentVatInvoiceOcrClient:
                 raise map_tencent_sdk_exception(exc) from exc
             raise
 
-        raw_response = json.loads(response.to_json_string())
+        response_payload = json.loads(response.to_json_string())
+        raw_response = response_payload.get("Response", response_payload)
+        if not isinstance(raw_response, dict):
+            raise AppError("OCR_PROVIDER_INVALID_RESPONSE", "Tencent OCR returned an invalid response", status_code=502)
         return OcrRecognitionResult(raw_response=raw_response, request_id=raw_response.get("RequestId"))
 
     def _build_client(self, provider_config: OcrProviderConfig, credential: dict[str, str], sdk=None):

@@ -134,11 +134,11 @@ def test_validate_upload_rejects_small_image_dimensions() -> None:
     assert getattr(exc_info.value, "code") == "OCR_INVALID_IMAGE_SIZE"
 
 
-def test_validate_upload_rejects_multi_page_pdf() -> None:
-    with pytest.raises(Exception) as exc_info:
-        validate_upload("invoice.pdf", "application/pdf", make_pdf_bytes(2))
+def test_validate_upload_accepts_multi_page_pdf_for_page_number_recognition() -> None:
+    validated = validate_upload("invoice.pdf", "application/pdf", make_pdf_bytes(2))
 
-    assert getattr(exc_info.value, "code") == "OCR_PDF_MULTI_PAGE_NOT_SUPPORTED"
+    assert validated.file_ext == "pdf"
+    assert validated.page_count == 2
 
 
 def test_local_file_storage_writes_under_year_month_and_sha(tmp_path) -> None:
@@ -281,3 +281,58 @@ def test_upload_document_assigns_visible_project_and_scene(
 
     assert forbidden.status_code == 403
     assert forbidden.json()["error"]["code"] == "PROJECT_FORBIDDEN"
+
+
+def test_document_preview_and_download_require_owner_access(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    owner = create_user(
+        db_session,
+        email="preview-owner@example.com",
+        password="password",
+        display_name="Preview Owner",
+        role=UserRole.user,
+    )
+    other = create_user(
+        db_session,
+        email="preview-other@example.com",
+        password="password",
+        display_name="Preview Other",
+        role=UserRole.user,
+    )
+    db_session.commit()
+    settings = Settings(
+        _env_file=None,
+        STORAGE_PATH=str(tmp_path),
+        APP_SECRET_KEY="dev-secret-change-me",
+        OCR_CONFIG_ENCRYPTION_KEY="dev-ocr-config-encryption-key-change-me",
+    )
+    monkeypatch.setattr("app.api.routes.documents.get_settings", lambda: settings)
+    client.cookies.set("session", create_session_token(owner.id))
+    content = make_png_bytes(120, 80)
+
+    uploaded = client.post(
+        "/api/v1/documents",
+        data={"auto_ocr": "false"},
+        files={"file": ("invoice.png", content, "image/png")},
+    )
+    document_id = uploaded.json()["data"]["document_id"]
+
+    preview = client.get(f"/api/v1/documents/{document_id}/preview")
+    assert preview.status_code == 200
+    assert preview.content == content
+    assert preview.headers["content-type"] == "image/png"
+    assert preview.headers["content-disposition"].startswith("inline;")
+
+    download = client.get(f"/api/v1/documents/{document_id}/download")
+    assert download.status_code == 200
+    assert download.content == content
+    assert download.headers["content-disposition"].startswith("attachment;")
+
+    client.cookies.set("session", create_session_token(other.id))
+    forbidden = client.get(f"/api/v1/documents/{document_id}/preview")
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error"]["code"] == "AUTH_FORBIDDEN"

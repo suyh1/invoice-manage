@@ -2,6 +2,7 @@ export type EditableField = {
   group: string;
   label: string;
   name: string;
+  ocrSource: string | null;
   ocrValue: string | null;
   type?: "date" | "number" | "text";
   value: string;
@@ -32,7 +33,10 @@ export function FieldEditor({
                   value={field.value}
                   onChange={(event) => onChange(field.name, event.currentTarget.value)}
                 />
-                <small>OCR 原值：{field.ocrValue || "-"}</small>
+                <small>
+                  {field.ocrSource ? `腾讯字段：${field.ocrSource} · ` : "腾讯未返回对应字段 · "}
+                  OCR 原值：{field.ocrValue || "无值"}
+                </small>
               </label>
             ))}
           </div>

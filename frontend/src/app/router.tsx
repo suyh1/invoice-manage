@@ -5,7 +5,6 @@ import { visibleNavigationIds } from "../lib/permissions";
 import { DashboardPage } from "../pages/DashboardPage";
 import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
 import { InvoiceListPage } from "../pages/InvoiceListPage";
-import { ProjectManagementPage } from "../pages/ProjectManagementPage";
 import { ReviewQueuePage } from "../pages/ReviewQueuePage";
 import { ExportRecordsPage } from "../pages/ExportRecordsPage";
 import { SettingsPage } from "../pages/SettingsPage";
@@ -18,7 +17,6 @@ export type AppRouteId =
   | "upload"
   | "review"
   | "exports"
-  | "projects"
   | "users"
   | "settings";
 
@@ -38,7 +36,6 @@ export const appRoutes: AppRoute[] = [
   { id: "upload", label: "上传识别", path: "#/upload" },
   { id: "review", label: "待校对", path: "#/review" },
   { id: "exports", label: "导出记录", path: "#/exports" },
-  { id: "projects", label: "项目", path: "#/projects" },
   { id: "users", label: "用户管理", path: "#/users" },
   { id: "settings", label: "设置", path: "#/settings" },
 ];
@@ -85,9 +82,6 @@ export function renderRoute(route: AppRoute) {
   if (route.id === "exports") {
     return <ExportRecordsPage />;
   }
-  if (route.id === "projects") {
-    return <ProjectManagementPage />;
-  }
   if (route.id === "users") {
     return <UserManagementPage />;
   }
@@ -101,7 +95,6 @@ function PlaceholderPage({ route }: { route: AppRoute }) {
     upload: "批量上传、预校验和 OCR 队列将在上传工作流任务中接入。",
     review: "字段缺失、重复疑似和低置信度聚合将在校对任务中接入。",
     exports: "导出任务列表和下载状态将在导出页面任务中接入。",
-    projects: "",
     users: "",
     settings: "",
   };

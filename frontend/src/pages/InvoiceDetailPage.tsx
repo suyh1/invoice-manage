@@ -39,7 +39,9 @@ type InvoiceDetail = {
   } | null;
   items: InvoiceLineItem[];
   normalized_payload: {
+    field_sources?: Record<string, { name: string; value: string | null }>;
     invoice_fields?: Record<string, string | null>;
+    supplemental_fields?: Array<{ group: string; name: string; value: string }>;
   } | null;
   ocr: {
     error_code: string | null;
@@ -106,11 +108,13 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
       return [];
     }
     const ocrFields = detail.normalized_payload?.invoice_fields ?? {};
+    const fieldSources = detail.normalized_payload?.field_sources ?? {};
     return invoiceFields.map((field): EditableField => ({
       group: field.group,
       label: field.label,
       name: field.name,
-      ocrValue: ocrFields[field.name] ?? null,
+      ocrSource: fieldSources[field.name]?.name ?? null,
+      ocrValue: fieldSources[field.name]?.value ?? ocrFields[field.name] ?? null,
       type: "type" in field ? field.type : "text",
       value: draft[field.name],
     }));
@@ -299,6 +303,7 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
               fields={editableFields}
               onChange={(name, value) => setDraft((current) => (current ? { ...current, [name]: value } : current))}
             />
+            <SupplementalOcrFields fields={detail.normalized_payload?.supplemental_fields ?? []} />
           </section>
 
           <section className="surface-panel">
@@ -378,4 +383,39 @@ function scalar(value: string | null) {
 
 function apiErrorMessage(error: unknown, fallback: string) {
   return error instanceof ApiError ? error.message : fallback;
+}
+
+function SupplementalOcrFields({ fields }: { fields: Array<{ group: string; name: string; value: string }> }) {
+  if (!fields.length) return null;
+
+  const groups = fields.reduce<Array<{ name: string; fields: typeof fields }>>((result, field) => {
+    let group = result.find((candidate) => candidate.name === field.group);
+    if (!group) {
+      group = { name: field.group, fields: [] };
+      result.push(group);
+    }
+    group.fields.push(field);
+    return result;
+  }, []);
+
+  return (
+    <section className="ocr-supplemental">
+      <div className="field-group-heading">
+        <span className="section-label">补充识别信息</span>
+      </div>
+      {groups.map((group) => (
+        <div className="ocr-supplemental-group" key={group.name}>
+          <h3>{group.name}</h3>
+          <dl className="ocr-supplemental-grid">
+            {group.fields.map((field, index) => (
+              <div key={`${field.name}-${index}`}>
+                <dt>{field.name}</dt>
+                <dd>{field.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+    </section>
+  );
 }

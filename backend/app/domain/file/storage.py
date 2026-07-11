@@ -22,3 +22,10 @@ class LocalFileStorage:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(validated_upload.content)
         return storage_key
+
+    def path_for(self, storage_key: str) -> Path:
+        root = self.root_path.resolve()
+        path = (root / storage_key).resolve()
+        if not path.is_relative_to(root):
+            raise ValueError("Storage key resolves outside the configured storage path")
+        return path

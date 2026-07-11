@@ -78,8 +78,6 @@ def validate_upload(filename: str, content_type: str | None, content: bytes) -> 
         image_width, image_height = extract_jpeg_dimensions(content)
     elif detected_type == "pdf":
         page_count = count_pdf_pages(content)
-        if page_count > UPLOAD_VALIDATION_DEFAULTS.max_pdf_pages:
-            raise AppError("OCR_PDF_MULTI_PAGE_NOT_SUPPORTED", "PDF files must be split into single pages", status_code=400)
 
     if image_width is not None and image_height is not None:
         min_size = UPLOAD_VALIDATION_DEFAULTS.min_image_dimension_px

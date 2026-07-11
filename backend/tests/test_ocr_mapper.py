@@ -18,6 +18,12 @@ def test_tencent_mapper_maps_fixture_fields_and_items() -> None:
     assert mapped.invoice_fields["invoice_code"] == "144032216011"
     assert mapped.invoice_fields["invoice_number"] == "12876543"
     assert mapped.invoice_fields["invoice_date"] == date(2026, 7, 9)
+    assert mapped.invoice_fields["invoice_type"] == "增值税电子普通发票"
+    assert mapped.invoice_fields["buyer_tax_id"] == "91310000MA1K000001"
+    assert mapped.invoice_fields["seller_tax_id"] == "91310000MA1K000002"
+    assert mapped.invoice_fields["amount_without_tax"] == Decimal("688.00")
+    assert mapped.invoice_fields["tax_amount"] == Decimal("41.28")
+    assert mapped.invoice_fields["amount_with_tax"] == Decimal("729.28")
     assert mapped.items == [
         {
             "name": "住宿服务",
@@ -33,6 +39,9 @@ def test_tencent_mapper_maps_fixture_fields_and_items() -> None:
     ]
     assert mapped.normalized_payload["invoice_fields"]["invoice_date"] == "2026-07-09"
     assert mapped.normalized_payload["items"][0]["tax_rate"] == "0.0600"
+    assert mapped.extra_fields["vat_invoice_infos"] == {
+        "销售方地址、电话": "上海市测试路 1 号 021-12345678"
+    }
 
 
 def test_tencent_mapper_normalizes_amount_aliases_tax_rate_and_unrecognized_fields() -> None:
@@ -57,9 +66,9 @@ def test_tencent_mapper_normalizes_amount_aliases_tax_rate_and_unrecognized_fiel
                 "Unit": "次",
                 "Quantity": "2",
                 "UnitPrice": "617.28",
-                "Amount": "1,234.56",
+                "AmountWithoutTax": "1,234.56",
                 "TaxRate": "6%",
-                "Tax": "74.07",
+                "TaxAmount": "74.07",
                 "LineNo": "1",
             }
         ],
@@ -99,7 +108,7 @@ def test_tencent_mapper_keeps_unparsed_known_fields_in_extra_fields() -> None:
             {
                 "Name": "办公用品",
                 "Quantity": "两件",
-                "Amount": "not-an-amount",
+                "AmountWithoutTax": "not-an-amount",
                 "TaxRate": "免税",
             }
         ],
@@ -117,6 +126,38 @@ def test_tencent_mapper_keeps_unparsed_known_fields_in_extra_fields() -> None:
         "开票日期": "二零二六年七月九日",
         "合计金额": "人民币壹佰元整",
         "Items[0].Quantity": "两件",
-        "Items[0].Amount": "not-an-amount",
+        "Items[0].AmountWithoutTax": "not-an-amount",
         "Items[0].TaxRate": "免税",
+    }
+
+
+def test_tencent_mapper_maps_real_electronic_invoice_field_names() -> None:
+    payload = json.loads((FIXTURE_DIR / "vat_invoice_real_response.json").read_text())
+
+    mapped = TencentVatInvoiceMapper().map(payload)
+
+    assert mapped.invoice_fields["seller_tax_id"] == "91520900MA6GN48P46"
+    assert "buyer_tax_id" not in mapped.invoice_fields
+    assert mapped.invoice_fields["amount_with_tax"] == Decimal("21.00")
+    assert mapped.normalized_payload["field_sources"]["seller_tax_id"] == {
+        "name": "销售方统一社会信用代码/纳税人识别号",
+        "value": "91520900MA6GN48P46",
+    }
+    assert mapped.normalized_payload["field_sources"]["buyer_tax_id"] == {
+        "name": "购买方统一社会信用代码/纳税人识别号",
+        "value": None,
+    }
+    assert mapped.normalized_payload["supplemental_fields"] == [
+        {"group": "金额与校验", "name": "价税合计(大写)", "value": "贰拾壹元整"},
+        {"group": "经办与备注", "name": "开票人", "value": "邹兰连"},
+        {
+            "group": "经办与备注",
+            "name": "备注",
+            "value": "MNJ1F2JY1W:758150074902:2026-06-20",
+        },
+    ]
+    assert mapped.extra_fields["vat_invoice_infos"] == {
+        "价税合计(大写)": "贰拾壹元整",
+        "开票人": "邹兰连",
+        "备注": "MNJ1F2JY1W:758150074902:2026-06-20",
     }

@@ -1854,6 +1854,153 @@ label {
   width: 100%;
 }
 
+.invoice-workbench {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(210px, 244px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.project-rail {
+  position: sticky;
+  top: 28px;
+  display: grid;
+  min-width: 0;
+  max-height: calc(100dvh - 56px);
+  gap: 14px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  padding-right: 18px;
+}
+
+.project-rail-heading,
+.preview-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.project-rail-heading h2 {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.project-rail-error {
+  color: var(--critical);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-rail-all,
+.project-rail-row {
+  min-height: 40px;
+  border-radius: var(--radius-small);
+}
+
+.project-rail-all {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink-muted);
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.project-rail-all:hover,
+.project-rail-row:hover {
+  background: var(--surface-muted);
+}
+
+.project-rail-all.active,
+.project-rail-row.active {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.project-rail-sections,
+.project-rail-section,
+.project-rail-list {
+  display: grid;
+  min-width: 0;
+}
+
+.project-rail-sections {
+  gap: 18px;
+}
+
+.project-rail-section {
+  gap: 6px;
+}
+
+.project-rail-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-subtle);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.project-rail-list {
+  gap: 3px;
+}
+
+.project-rail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 3px 4px 3px 10px;
+}
+
+.project-rail-select {
+  min-width: 0;
+  color: inherit;
+  padding: 7px 0;
+  text-align: left;
+}
+
+.project-rail-select span {
+  display: block;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-rail-actions {
+  display: flex;
+  opacity: 0;
+}
+
+.project-rail-row:hover .project-rail-actions,
+.project-rail-row:focus-within .project-rail-actions {
+  opacity: 1;
+}
+
+.project-rail-actions button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: var(--radius-small);
+  color: var(--ink-subtle);
+}
+
+.project-rail-actions button:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.invoice-workbench-main {
+  display: grid;
+  min-width: 0;
+  gap: 18px;
+}
+
 .invoice-list-header {
   display: flex;
   align-items: flex-start;
@@ -1882,7 +2029,7 @@ label {
 
 .invoice-filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1.3fr) repeat(5, minmax(140px, 1fr));
+  grid-template-columns: minmax(220px, 1.3fr) repeat(4, minmax(130px, 1fr));
   gap: 12px;
 }
 
@@ -1971,7 +2118,9 @@ label {
 
 .invoice-detail-layout {
   display: grid;
-  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.25fr);
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.22fr);
   gap: 18px;
   align-items: start;
 }
@@ -1980,6 +2129,12 @@ label {
   display: grid;
   gap: 18px;
   min-width: 0;
+}
+
+.detail-editor-stack > .surface-panel {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .project-assignment-panel {
@@ -2177,9 +2332,17 @@ label {
 
 .preview-toolbar {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.preview-toolbar > span {
+  margin-left: auto;
+  color: var(--ink-subtle);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .preview-canvas {
@@ -2192,6 +2355,12 @@ label {
   background: var(--surface-muted);
 }
 
+.preview-canvas.pdf-preview {
+  min-height: 640px;
+  place-items: stretch;
+  overflow: hidden;
+}
+
 .preview-canvas img,
 .preview-canvas iframe {
   display: block;
@@ -2202,8 +2371,10 @@ label {
 }
 
 .preview-canvas iframe {
-  width: 92%;
-  height: 480px;
+  width: 100%;
+  height: 640px;
+  max-width: none;
+  max-height: none;
   background: var(--surface);
 }
 
@@ -2240,6 +2411,52 @@ label {
   color: var(--ink);
   font-size: 13px;
   font-weight: 700;
+}
+
+.ocr-supplemental {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+
+.ocr-supplemental-group {
+  display: grid;
+  gap: 8px;
+}
+
+.ocr-supplemental-group h3 {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ocr-supplemental-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ocr-supplemental-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface-muted);
+  padding: 10px 12px;
+}
+
+.ocr-supplemental-grid dt {
+  color: var(--ink-subtle);
+  font-size: 11px;
+}
+
+.ocr-supplemental-grid dd {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .field-editor {
@@ -2331,6 +2548,16 @@ label {
   }
 }
 
+@media (max-width: 1360px) {
+  .invoice-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-preview {
+    position: static;
+  }
+}
+
 @media (max-width: 1180px) {
   .auth-main {
     gap: 48px;
@@ -2341,9 +2568,25 @@ label {
   }
 
   .settings-layout,
-  .upload-workspace,
-  .invoice-detail-layout {
+  .upload-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .invoice-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .project-rail {
+    position: static;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 0 0 16px;
+  }
+
+  .project-rail-sections {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    overflow-x: auto;
   }
 
   .provider-row {
@@ -2465,6 +2708,23 @@ label {
   .auth-page {
     grid-template-rows: 56px auto auto;
     padding-inline: 16px;
+  }
+
+  .project-rail-sections {
+    grid-template-columns: 1fr;
+  }
+
+  .document-meta,
+  .ocr-meta dl,
+  .field-grid,
+  .ocr-supplemental-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-canvas.pdf-preview,
+  .preview-canvas iframe {
+    min-height: 480px;
+    height: 480px;
   }
 
   .auth-header {

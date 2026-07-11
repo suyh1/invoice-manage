@@ -6,7 +6,6 @@ export type NavigationId =
   | "upload"
   | "review"
   | "exports"
-  | "projects"
   | "users"
   | "settings";
 
@@ -18,7 +17,6 @@ const operationalNavigation: NavigationId[] = [
   "upload",
   "review",
   "exports",
-  "projects",
 ];
 
 export function visibleNavigationIds(role: UserRole): NavigationId[] {

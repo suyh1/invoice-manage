@@ -137,6 +137,38 @@ def test_tencent_client_marks_pdf_requests(monkeypatch: pytest.MonkeyPatch) -> N
     assert captured["request_payload"]["PdfPageNumber"] == 1
 
 
+def test_tencent_client_accepts_documented_http_response_envelope(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = json.loads((FIXTURES / "vat_invoice_success.json").read_text())
+
+    class FakeRequest:
+        def from_json_string(self, value: str) -> None:
+            pass
+
+    class FakeResponse:
+        def to_json_string(self) -> str:
+            return json.dumps({"Response": payload})
+
+    fake_modules = SimpleNamespace(
+        Credential=lambda secret_id, secret_key: None,
+        HttpProfile=lambda: SimpleNamespace(endpoint=None),
+        ClientProfile=lambda: SimpleNamespace(httpProfile=None),
+        OcrClient=lambda credential, region, profile: SimpleNamespace(VatInvoiceOCR=lambda request: FakeResponse()),
+        VatInvoiceOCRRequest=FakeRequest,
+        TencentCloudSDKException=Exception,
+    )
+    monkeypatch.setattr("app.domain.ocr.client.load_tencent_sdk", lambda: fake_modules)
+
+    upload = validate_upload("invoice.png", "image/png", make_png_bytes())
+    result = TencentVatInvoiceOcrClient().recognize_file(
+        make_provider(),
+        {"secret_id": "id", "secret_key": "key"},
+        upload,
+    )
+
+    assert result.raw_response == payload
+    assert result.request_id == "req-success-001"
+
+
 def test_tencent_exception_mapping_marks_rate_limit_retryable() -> None:
     exc = map_tencent_sdk_exception(
         SimpleNamespace(code="RequestLimitExceeded", message="too many requests", requestId="req-rate-limit-001")

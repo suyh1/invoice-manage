@@ -1,0 +1,380 @@
+{
+  "Angle": -0.06465587,
+  "Items": [
+    {
+      "Name": "*信息技术服务*服务费",
+      "Spec": "",
+      "Unit": "",
+      "LineNo": "0",
+      "TaxRate": "6%",
+      "Quantity": "1",
+      "TaxAmount": "1.19",
+      "UnitPrice": "19.8113207547",
+      "VehicleType": "",
+      "ArrivalPlace": "",
+      "VehicleBrand": "",
+      "DeparturePlace": "",
+      "TaxClassifyCode": "",
+      "AmountWithoutTax": "19.81",
+      "ConstructionName": "",
+      "ConstructionPlace": "",
+      "TransportItemsName": ""
+    }
+  ],
+  "RequestId": "2d7fa6ee-9422-42dc-ab68-ed049562257c",
+  "PdfPageSize": 1,
+  "VatInvoiceInfos": [
+    {
+      "Name": "发票名称",
+      "Value": "电子发票(普通发票)",
+      "Polygon": {
+        "LeftTop": {
+          "X": 383,
+          "Y": 42
+        },
+        "RightTop": {
+          "X": 762,
+          "Y": 42
+        },
+        "LeftBottom": {
+          "X": 383,
+          "Y": 82
+        },
+        "RightBottom": {
+          "X": 762,
+          "Y": 82
+        }
+      }
+    },
+    {
+      "Name": "发票号码",
+      "Value": "26527000000090440284",
+      "Polygon": {
+        "LeftTop": {
+          "X": 959,
+          "Y": 62
+        },
+        "RightTop": {
+          "X": 1141,
+          "Y": 62
+        },
+        "LeftBottom": {
+          "X": 959,
+          "Y": 80
+        },
+        "RightBottom": {
+          "X": 1141,
+          "Y": 80
+        }
+      }
+    },
+    {
+      "Name": "开票日期",
+      "Value": "2026年07月08日",
+      "Polygon": {
+        "LeftTop": {
+          "X": 959,
+          "Y": 96
+        },
+        "RightTop": {
+          "X": 1084,
+          "Y": 96
+        },
+        "LeftBottom": {
+          "X": 959,
+          "Y": 116
+        },
+        "RightBottom": {
+          "X": 1084,
+          "Y": 116
+        }
+      }
+    },
+    {
+      "Name": "购买方名称",
+      "Value": "苏钰淏",
+      "Polygon": {
+        "LeftTop": {
+          "X": 109,
+          "Y": 184
+        },
+        "RightTop": {
+          "X": 163,
+          "Y": 184
+        },
+        "LeftBottom": {
+          "X": 109,
+          "Y": 204
+        },
+        "RightBottom": {
+          "X": 163,
+          "Y": 204
+        }
+      }
+    },
+    {
+      "Name": "销售方名称",
+      "Value": "云上艾珀(贵州)技术有限公司",
+      "Polygon": {
+        "LeftTop": {
+          "X": 676,
+          "Y": 186
+        },
+        "RightTop": {
+          "X": 927,
+          "Y": 186
+        },
+        "LeftBottom": {
+          "X": 676,
+          "Y": 205
+        },
+        "RightBottom": {
+          "X": 927,
+          "Y": 205
+        }
+      }
+    },
+    {
+      "Name": "销售方统一社会信用代码/纳税人识别号",
+      "Value": "91520900MA6GN48P46",
+      "Polygon": {
+        "LeftTop": {
+          "X": 874,
+          "Y": 248
+        },
+        "RightTop": {
+          "X": 1130,
+          "Y": 248
+        },
+        "LeftBottom": {
+          "X": 874,
+          "Y": 269
+        },
+        "RightBottom": {
+          "X": 1130,
+          "Y": 269
+        }
+      }
+    },
+    {
+      "Name": "合计金额",
+      "Value": "¥19.81",
+      "Polygon": {
+        "LeftTop": {
+          "X": 814,
+          "Y": 524
+        },
+        "RightTop": {
+          "X": 864,
+          "Y": 524
+        },
+        "LeftBottom": {
+          "X": 814,
+          "Y": 541
+        },
+        "RightBottom": {
+          "X": 864,
+          "Y": 541
+        }
+      }
+    },
+    {
+      "Name": "合计税额",
+      "Value": "¥1.19",
+      "Polygon": {
+        "LeftTop": {
+          "X": 1118,
+          "Y": 524
+        },
+        "RightTop": {
+          "X": 1160,
+          "Y": 524
+        },
+        "LeftBottom": {
+          "X": 1118,
+          "Y": 541
+        },
+        "RightBottom": {
+          "X": 1160,
+          "Y": 541
+        }
+      }
+    },
+    {
+      "Name": "价税合计(大写)",
+      "Value": "贰拾壹元整",
+      "Polygon": {
+        "LeftTop": {
+          "X": 352,
+          "Y": 551
+        },
+        "RightTop": {
+          "X": 443,
+          "Y": 551
+        },
+        "LeftBottom": {
+          "X": 352,
+          "Y": 572
+        },
+        "RightBottom": {
+          "X": 443,
+          "Y": 572
+        }
+      }
+    },
+    {
+      "Name": "价税合计(小写)",
+      "Value": "¥21.00",
+      "Polygon": {
+        "LeftTop": {
+          "X": 873,
+          "Y": 550
+        },
+        "RightTop": {
+          "X": 942,
+          "Y": 550
+        },
+        "LeftBottom": {
+          "X": 873,
+          "Y": 572
+        },
+        "RightBottom": {
+          "X": 942,
+          "Y": 572
+        }
+      }
+    },
+    {
+      "Name": "开票人",
+      "Value": "邹兰连",
+      "Polygon": {
+        "LeftTop": {
+          "X": 174,
+          "Y": 729
+        },
+        "RightTop": {
+          "X": 231,
+          "Y": 729
+        },
+        "LeftBottom": {
+          "X": 174,
+          "Y": 749
+        },
+        "RightBottom": {
+          "X": 231,
+          "Y": 749
+        }
+      }
+    },
+    {
+      "Name": "发票类型",
+      "Value": "电子发票(普通发票)",
+      "Polygon": {
+        "LeftTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "LeftBottom": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightBottom": {
+          "X": 0,
+          "Y": 0
+        }
+      }
+    },
+    {
+      "Name": "小计税额",
+      "Value": "",
+      "Polygon": {
+        "LeftTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "LeftBottom": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightBottom": {
+          "X": 0,
+          "Y": 0
+        }
+      }
+    },
+    {
+      "Name": "小计金额",
+      "Value": "",
+      "Polygon": {
+        "LeftTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "LeftBottom": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightBottom": {
+          "X": 0,
+          "Y": 0
+        }
+      }
+    },
+    {
+      "Name": "购买方统一社会信用代码/纳税人识别号",
+      "Value": "",
+      "Polygon": {
+        "LeftTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightTop": {
+          "X": 0,
+          "Y": 0
+        },
+        "LeftBottom": {
+          "X": 0,
+          "Y": 0
+        },
+        "RightBottom": {
+          "X": 0,
+          "Y": 0
+        }
+      }
+    },
+    {
+      "Name": "备注",
+      "Value": "MNJ1F2JY1W:758150074902:2026-06-20",
+      "Polygon": {
+        "LeftTop": {
+          "X": 64,
+          "Y": 589
+        },
+        "RightTop": {
+          "X": 373,
+          "Y": 589
+        },
+        "LeftBottom": {
+          "X": 64,
+          "Y": 608
+        },
+        "RightBottom": {
+          "X": 373,
+          "Y": 608
+        }
+      }
+    }
+  ]
+}

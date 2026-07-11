@@ -2,18 +2,37 @@
   "VatInvoiceInfos": [
     { "Name": "发票代码", "Value": "144032216011" },
     { "Name": "发票号码", "Value": "12876543" },
-    { "Name": "开票日期", "Value": "2026-07-09" }
+    { "Name": "开票日期", "Value": "2026-07-09" },
+    { "Name": "发票名称", "Value": "增值税电子普通发票" },
+    { "Name": "购买方名称", "Value": "星河科技有限公司" },
+    { "Name": "购买方识别号", "Value": "91310000MA1K000001" },
+    { "Name": "销售方名称", "Value": "上海云栖酒店" },
+    { "Name": "销售方识别号", "Value": "91310000MA1K000002" },
+    { "Name": "合计金额", "Value": "688.00" },
+    { "Name": "合计税额", "Value": "41.28" },
+    { "Name": "小写金额", "Value": "729.28" },
+    { "Name": "校验码", "Value": "12345678901234567890" },
+    { "Name": "销售方地址、电话", "Value": "上海市测试路 1 号 021-12345678" }
   ],
   "Items": [
     {
+      "LineNo": "1",
       "Name": "住宿服务",
-      "Specification": "标准间",
+      "Spec": "标准间",
       "Unit": "晚",
       "Quantity": "1",
       "UnitPrice": "688.00",
-      "Amount": "688.00",
-      "TaxRate": "0.06",
-      "Tax": "41.28"
+      "AmountWithoutTax": "688.00",
+      "TaxRate": "6%",
+      "TaxAmount": "41.28",
+      "TaxClassifyCode": "3040502020000000000",
+      "VehicleType": "",
+      "VehicleBrand": "",
+      "DeparturePlace": "",
+      "ArrivalPlace": "",
+      "TransportItemsName": "",
+      "ConstructionPlace": "",
+      "ConstructionName": ""
     }
   ],
   "PdfPageSize": 1,

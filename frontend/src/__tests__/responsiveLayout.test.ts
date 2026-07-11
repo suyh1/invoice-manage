@@ -22,6 +22,24 @@ describe("responsive workspace layout", () => {
     );
   });
 
+  it("keeps invoice detail panels shrinkable and stacks before the editor overflows", () => {
+    const detailRule = styles.match(/\.invoice-detail-layout\s*\{([^}]*)\}/)?.[1] ?? "";
+    const previewRule = styles.match(/\.invoice-preview\s*\{([^}]*)\}/)?.[1] ?? "";
+    const detailBreakpoint = styles.match(
+      /@media \(max-width: 1360px\) \{([\s\S]*?)(?=@media|$)/,
+    )?.[1] ?? "";
+
+    expect(detailRule).toContain("min-width: 0;");
+    expect(previewRule).toContain("min-width: 0;");
+    expect(detailBreakpoint).toMatch(/\.invoice-detail-layout\s*\{[^}]*grid-template-columns:\s*1fr;/);
+  });
+
+  it("defines the unified project and invoice workspace", () => {
+    expect(styles).toContain(".invoice-workbench");
+    expect(styles).toContain(".project-rail");
+    expect(styles).toContain(".invoice-workbench-main");
+  });
+
   it("defines the approved motion authentication visual contract", () => {
     const desktopSingleScreenRules = styles.match(
       /@media \(min-width: 811px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
