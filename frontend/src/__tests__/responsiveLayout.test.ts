@@ -53,6 +53,21 @@ describe("responsive workspace layout", () => {
     expect(styles).toContain(".invoice-archive .project-rail-heading h2");
   });
 
+  it("keeps the invoice detail workbench below the topbar and inside the workspace", () => {
+    const boundedDetailRules = styles.split("/* Bounded invoice detail workspace */")[1] ?? "";
+
+    expect(styles).toContain("/* Bounded invoice detail workspace */");
+    expect(boundedDetailRules).toMatch(
+      /\.app-shell \.invoice-review-workbench\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*margin:\s*0;[^}]*overflow-x:\s*clip;/,
+    );
+    expect(boundedDetailRules).toMatch(
+      /\.app-shell \.invoice-review-workbench \.invoice-detail-layout\s*\{[^}]*grid-template-columns:\s*minmax\(320px, 0\.9fr\) minmax\(0, 1\.1fr\);/,
+    );
+    expect(boundedDetailRules).toMatch(
+      /@media \(max-width: 980px\)[\s\S]*?\.app-shell \.invoice-review-workbench \.invoice-detail-layout\s*\{[^}]*grid-template-columns:\s*1fr;/,
+    );
+  });
+
   it("defines a readable authenticated type floor", () => {
     expect(styles).toContain("/* Authenticated readability baseline */");
     expect(styles).toContain("--desk-body-size: 14px;");

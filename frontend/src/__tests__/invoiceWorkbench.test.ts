@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const invoicePage = readFileSync(new URL("../pages/InvoiceListPage.tsx", import.meta.url), "utf8");
 const router = readFileSync(new URL("../app/router.tsx", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
 
 describe("invoice workbench", () => {
   it("integrates project navigation and project dialogs into the invoice library", () => {
@@ -32,5 +33,17 @@ describe("invoice workbench", () => {
     expect(invoicePage).toContain("initialInvoiceFilters");
     expect(invoicePage).toContain("seller_name");
     expect(invoicePage).toContain("routeParams");
+  });
+
+  it("keeps active project controls on one continuous selected surface", () => {
+    expect(styles).toMatch(
+      /\.invoice-archive \.project-rail-row\.active \.project-rail-select\s*\{[^}]*background:\s*transparent;[^}]*color:\s*inherit;/,
+    );
+    expect(styles).toMatch(
+      /\.invoice-archive \.project-rail-row\.active \.project-rail-actions button\s*\{[^}]*background:\s*transparent;[^}]*color:\s*inherit;/,
+    );
+    expect(styles).toMatch(
+      /\.invoice-archive \.project-rail-row\.active \.project-rail-select:focus-visible\s*\{[^}]*box-shadow:\s*inset 0 -2px 0 #fff;/,
+    );
   });
 });

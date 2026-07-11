@@ -2155,9 +2155,16 @@ label {
   font-size: 13px;
 }
 
-.project-assignment-panel > label {
-  width: min(100%, 280px);
-  flex: 0 1 280px;
+.assignment-controls {
+  display: grid;
+  width: min(100%, 580px);
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.assignment-controls label {
+  min-width: 0;
 }
 
 .review-page {
@@ -4337,6 +4344,21 @@ label {
 .invoice-archive .project-rail-all svg { width: 13px; }
 .invoice-archive .project-rail-all.active,
 .invoice-archive .project-rail-row.active { background: var(--desk-ink); color: #fff; }
+.invoice-archive .project-rail-row.active .project-rail-select {
+  background: transparent;
+  color: inherit;
+}
+.invoice-archive .project-rail-row.active .project-rail-select:focus-visible {
+  box-shadow: inset 0 -2px 0 #fff;
+}
+.invoice-archive .project-rail-row.active .project-rail-actions button {
+  background: transparent;
+  color: inherit;
+}
+.invoice-archive .project-rail-row.active .project-rail-actions button:hover {
+  background: rgb(255 255 255 / 0.14);
+  color: inherit;
+}
 .invoice-archive .project-rail-sections { gap: 16px; }
 .invoice-archive .project-rail-section h3 { padding: 8px 7px 2px; color: var(--desk-faint); font-family: ui-monospace, monospace; font-size: 7px; font-weight: 500; }
 .invoice-archive .project-rail-section h3 svg { display: none; }
@@ -4358,15 +4380,44 @@ label {
 .invoice-archive .invoice-archive-ledger { margin: 20px 26px 30px; padding: 0; border: 0; }
 .invoice-archive .invoice-archive-ledger .panel-heading { min-height: 48px; align-items: center; margin: 0; border-bottom: 1px solid var(--desk-ink); }
 .invoice-archive .invoice-archive-ledger .panel-heading h2 { margin-top: 3px; font-size: 15px; font-weight: 600; }
-.invoice-ledger-table { min-width: 980px; table-layout: fixed; }
+.invoice-ledger-table { width: max-content; min-width: 100%; table-layout: fixed; }
 .invoice-ledger-table th,
 .invoice-ledger-table td { height: 62px; padding: 8px 9px; font-size: 8px; }
-.invoice-ledger-table th { height: 34px; background: transparent; color: var(--desk-muted); font-size: 7px; font-weight: 500; }
+.invoice-ledger-table th { position: relative; height: 34px; background: transparent; color: var(--desk-muted); font-size: 7px; font-weight: 500; }
 .invoice-ledger-table tbody tr:hover { background: #fafaf8; }
 .invoice-ledger-table td strong { font-family: ui-monospace, monospace; font-size: 8px; }
 .invoice-ledger-table td span,
 .invoice-ledger-table td small { font-size: 7px; }
-.invoice-ledger-table td:nth-child(6) strong { font-size: 10px; font-variant-numeric: tabular-nums; }
+.invoice-ledger-table .invoice-number-cell,
+.invoice-ledger-table .invoice-seller-cell,
+.invoice-ledger-table .invoice-date-cell,
+.invoice-ledger-table .invoice-amount-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invoice-ledger-table .invoice-number-cell strong,
+.invoice-ledger-table .invoice-seller-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invoice-ledger-table .invoice-number-cell strong { display: block; }
+.invoice-ledger-table .invoice-number-cell .status-token { margin-top: 6px; }
+.invoice-ledger-table .invoice-amount-cell strong { font-size: 10px; font-variant-numeric: tabular-nums; }
+.invoice-ledger-table .invoice-action-cell { text-align: right; white-space: nowrap; }
+.column-resize-handle {
+  position: absolute;
+  top: 4px;
+  right: -4px;
+  z-index: 1;
+  width: 9px;
+  height: calc(100% - 8px);
+  cursor: col-resize;
+  touch-action: none;
+}
+.column-resize-handle::after {
+  position: absolute;
+  top: 20%;
+  bottom: 20%;
+  left: 4px;
+  width: 1px;
+  background: var(--desk-line-dark);
+  content: "";
+}
+.column-resize-handle:hover::after { width: 2px; background: var(--desk-ink); }
 .invoice-ledger-table .button { min-height: 28px; padding: 0 9px; font-size: 7px; }
 
 .review-page { padding-top: 34px !important; }
@@ -4606,7 +4657,7 @@ body,
 .invoice-archive .invoice-archive-ledger .panel-heading { min-height: 44px; }
 .invoice-archive .invoice-archive-ledger .panel-heading h2 { font-size: 19px; }
 .invoice-archive .invoice-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; }
-.invoice-ledger-table { min-width: 1060px; }
+.invoice-ledger-table { min-width: 100%; }
 .invoice-ledger-table th { font-size: 10px; }
 .invoice-ledger-table td { font-size: 12px; }
 .invoice-ledger-table td strong { font-size: 11px; }
@@ -4905,4 +4956,33 @@ body,
   max-width: 100%;
   margin: 0;
   min-height: calc(100dvh - 62px);
+}
+
+/* Bounded invoice detail workspace */
+.app-shell .invoice-review-workbench {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  overflow-x: clip;
+}
+
+.app-shell .invoice-review-workbench .invoice-detail-layout {
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+}
+
+@media (max-width: 980px) {
+  .app-shell .invoice-review-workbench .invoice-detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .app-shell .invoice-review-workbench {
+    width: 100%;
+  }
+
+  .app-shell .invoice-review-workbench .assignment-controls {
+    grid-template-columns: 1fr;
+  }
 }

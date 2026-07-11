@@ -5,6 +5,7 @@ import { InvoicePreview, type InvoiceDocumentMeta } from "../components/InvoiceP
 import { LineItemsEditor, type InvoiceLineItem } from "../components/LineItemsEditor";
 import { ProjectFilter } from "../components/ProjectFilter";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut } from "../lib/api";
+import { EXPENSE_SCENE_OPTIONS } from "../lib/expenseScenes";
 import type { ProjectSummary } from "../lib/projects";
 
 type InvoiceDetail = {
@@ -74,7 +75,6 @@ const invoiceFields = [
   { group: "金额信息", label: "税额", name: "tax_amount", type: "number" },
   { group: "金额信息", label: "价税合计", name: "amount_with_tax", type: "number" },
   { group: "金额信息", label: "校验码", name: "check_code" },
-  { group: "归档信息", label: "业务场景", name: "expense_scene" },
 ] as const;
 
 export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
@@ -109,15 +109,20 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
     }
     const ocrFields = detail.normalized_payload?.invoice_fields ?? {};
     const fieldSources = detail.normalized_payload?.field_sources ?? {};
-    return invoiceFields.map((field): EditableField => ({
-      group: field.group,
-      label: field.label,
-      name: field.name,
-      ocrSource: fieldSources[field.name]?.name ?? null,
-      ocrValue: fieldSources[field.name]?.value ?? ocrFields[field.name] ?? null,
-      type: "type" in field ? field.type : "text",
-      value: draft[field.name],
-    }));
+    const hasInvoiceCode = Boolean(
+      detail.invoice_code || fieldSources.invoice_code?.value || ocrFields.invoice_code,
+    );
+    return invoiceFields
+      .filter((field) => field.name !== "invoice_code" || hasInvoiceCode)
+      .map((field): EditableField => ({
+        group: field.group,
+        label: field.label,
+        name: field.name,
+        ocrSource: fieldSources[field.name]?.name ?? null,
+        ocrValue: fieldSources[field.name]?.value ?? ocrFields[field.name] ?? null,
+        type: "type" in field ? field.type : "text",
+        value: draft[field.name],
+      }));
   }, [detail, draft]);
 
   async function loadInvoice() {
@@ -185,6 +190,26 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
     } catch (error) {
       setStatus("error");
       setMessage(apiErrorMessage(error, "项目移动失败。"));
+    }
+  }
+
+  async function changeExpenseScene(expenseScene: string) {
+    if (!detail || expenseScene === (detail.expense_scene ?? "")) {
+      return;
+    }
+    setStatus("saving");
+    try {
+      const updated = await apiPatch<InvoiceDetail>(`/api/v1/invoices/${detail.id}`, {
+        expense_scene: expenseScene || null,
+      });
+      setDetail(updated);
+      setDraft(toDraft(updated));
+      setLineItems(updated.items);
+      setMessage("已更新业务场景。");
+      setStatus("ready");
+    } catch (error) {
+      setStatus("error");
+      setMessage(apiErrorMessage(error, "业务场景更新失败。"));
     }
   }
 
@@ -280,14 +305,29 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
               <h2>{detail.project?.name || "未分类"}</h2>
               <p>调整后会保留项目移动的修正记录。</p>
             </div>
-            <ProjectFilter
-              disabled={status === "saving" || projects.length === 0}
-              includeAll={false}
-              label="归属项目"
-              onChange={moveProject}
-              projects={projects}
-              value={detail.project?.id ?? ""}
-            />
+            <div className="assignment-controls">
+              <ProjectFilter
+                disabled={status === "saving" || projects.length === 0}
+                includeAll={false}
+                label="归属项目"
+                onChange={moveProject}
+                projects={projects}
+                value={detail.project?.id ?? ""}
+              />
+              <label>
+                业务场景
+                <select
+                  disabled={status === "saving"}
+                  onChange={(event) => changeExpenseScene(event.currentTarget.value)}
+                  value={detail.expense_scene ?? ""}
+                >
+                  <option value="">不指定</option>
+                  {EXPENSE_SCENE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </section>
           <section className="surface-panel">
             <div className="panel-heading">

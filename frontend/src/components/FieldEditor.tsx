@@ -34,8 +34,7 @@ export function FieldEditor({
                   onChange={(event) => onChange(field.name, event.currentTarget.value)}
                 />
                 <small>
-                  {field.ocrSource ? `腾讯字段：${field.ocrSource} · ` : "腾讯未返回对应字段 · "}
-                  OCR 原值：{field.ocrValue || "无值"}
+                  原始字段：{field.ocrSource || "未返回"} · OCR值：{field.ocrValue || "无值"}
                 </small>
               </label>
             ))}

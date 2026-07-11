@@ -10,7 +10,10 @@ const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
 describe("OCR field presentation", () => {
   it("shows source field names and useful supplemental invoice fields", () => {
     expect(fieldEditor).toContain("ocrSource");
-    expect(fieldEditor).toContain("腾讯字段");
+    expect(fieldEditor).toContain("原始字段：");
+    expect(fieldEditor).toContain("OCR值：");
+    expect(fieldEditor).not.toContain("腾讯字段");
+    expect(fieldEditor).not.toContain("腾讯未返回对应字段");
     expect(detailPage).toContain("supplemental_fields");
     expect(detailPage).toContain("补充识别信息");
     expect(styles).toContain(".ocr-supplemental-grid");

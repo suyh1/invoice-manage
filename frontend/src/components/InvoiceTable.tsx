@@ -1,3 +1,5 @@
+import { useState, type PointerEvent as ReactPointerEvent } from "react";
+
 import { invoiceStatusLabel } from "../lib/invoiceStatus";
 
 export type InvoiceSummary = {
@@ -26,7 +28,28 @@ export type InvoiceSummary = {
   status: string;
 };
 
+type ResizableColumnKey = "amount" | "date" | "number" | "seller";
+
+type ColumnDefinition = {
+  defaultWidth: number;
+  key: ResizableColumnKey;
+  label: string;
+  maxWidth: number;
+  minWidth: number;
+};
+
+const COLUMN_STORAGE_KEY = "invoice-table-column-widths";
+const resizableColumns: ColumnDefinition[] = [
+  { defaultWidth: 280, key: "number", label: "发票号码", maxWidth: 520, minWidth: 190 },
+  { defaultWidth: 300, key: "seller", label: "销售方", maxWidth: 620, minWidth: 180 },
+  { defaultWidth: 140, key: "date", label: "日期", maxWidth: 260, minWidth: 120 },
+  { defaultWidth: 160, key: "amount", label: "金额", maxWidth: 300, minWidth: 130 },
+];
+const actionColumnWidth = 96;
+
 export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
+  const [columnWidths, setColumnWidths] = useState<Record<ResizableColumnKey, number>>(readColumnWidths);
+
   if (!invoices.length) {
     return (
       <div className="empty-state invoice-empty">
@@ -43,43 +66,42 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
   return (
     <div className="invoice-table-wrap">
       <table className="invoice-table invoice-ledger-table">
+        <colgroup>
+          {resizableColumns.map((column) => <col key={column.key} style={{ width: columnWidths[column.key] }} />)}
+          <col style={{ width: actionColumnWidth }} />
+        </colgroup>
         <thead>
           <tr>
-            <th>发票号码</th>
-            <th>项目</th>
-            <th>销售方</th>
-            <th>购买方</th>
-            <th>日期</th>
-            <th>金额</th>
-            <th>状态</th>
-            <th>文件</th>
-            <th>操作</th>
+            {resizableColumns.map((column) => (
+              <th data-resizable="true" key={column.key}>
+                {column.label}
+                <span
+                  aria-label={`调整${column.label}列宽`}
+                  aria-orientation="vertical"
+                  className="column-resize-handle"
+                  onPointerDown={(event) => startResize(event, column)}
+                  role="separator"
+                />
+              </th>
+            ))}
+            <th data-resizable="false">操作</th>
           </tr>
         </thead>
         <tbody>
           {invoices.map((invoice) => (
             <tr key={invoice.id}>
-              <td>
+              <td className="invoice-number-cell" title={invoice.invoice_number || "未识别发票号码"}>
                 <strong>{invoice.invoice_number || "-"}</strong>
-                <span>{invoice.invoice_code || "无代码"}</span>
-              </td>
-              <td>{invoice.project?.name || "未分类"}</td>
-              <td>{invoice.seller_name || "-"}</td>
-              <td>{invoice.buyer_name || "-"}</td>
-              <td>{invoice.invoice_date || "-"}</td>
-              <td>
-                <strong>{formatMoney(invoice.amount_with_tax, invoice.currency)}</strong>
-              </td>
-              <td>
                 <span className={`status-token ${invoice.is_duplicate_suspected ? "danger" : invoice.status === "confirmed" ? "success" : "neutral"}`}>
                   {invoice.is_duplicate_suspected ? "疑似重复" : invoiceStatusLabel(invoice.status)}
                 </span>
               </td>
-              <td>
-                <span>{invoice.document?.file_ext?.toUpperCase() || "-"}</span>
-                <small>{invoice.document?.original_filename || ""}</small>
+              <td className="invoice-seller-cell" title={invoice.seller_name || "未知销售方"}>{invoice.seller_name || "-"}</td>
+              <td className="invoice-date-cell">{invoice.invoice_date || "-"}</td>
+              <td className="invoice-amount-cell">
+                <strong>{formatMoney(invoice.amount_with_tax, invoice.currency)}</strong>
               </td>
-              <td>
+              <td className="invoice-action-cell">
                 <a className="button secondary" href={`#/invoices/${invoice.id}`}>
                   查看
                 </a>
@@ -90,6 +112,53 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
       </table>
     </div>
   );
+
+  function startResize(event: ReactPointerEvent<HTMLSpanElement>, column: ColumnDefinition) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = columnWidths[column.key];
+    let nextWidth = startWidth;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      nextWidth = clamp(startWidth + moveEvent.clientX - startX, column.minWidth, column.maxWidth);
+      setColumnWidths((current) => ({ ...current, [column.key]: nextWidth }));
+    };
+    const handlePointerUp = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      const persisted = { ...columnWidths, [column.key]: nextWidth };
+      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(persisted));
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }
+}
+
+function readColumnWidths(): Record<ResizableColumnKey, number> {
+  const defaults = Object.fromEntries(
+    resizableColumns.map((column) => [column.key, column.defaultWidth]),
+  ) as Record<ResizableColumnKey, number>;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(COLUMN_STORAGE_KEY) || "{}") as Partial<Record<ResizableColumnKey, number>>;
+    return Object.fromEntries(
+      resizableColumns.map((column) => {
+        const storedWidth = stored[column.key];
+        return [
+          column.key,
+          typeof storedWidth === "number"
+            ? clamp(storedWidth, column.minWidth, column.maxWidth)
+            : defaults[column.key],
+        ];
+      }),
+    ) as Record<ResizableColumnKey, number>;
+  } catch {
+    return defaults;
+  }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }
 
 function formatMoney(value: string | null, currency: string | null) {

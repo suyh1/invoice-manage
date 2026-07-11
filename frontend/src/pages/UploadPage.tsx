@@ -5,6 +5,7 @@ import { ProjectFilter } from "../components/ProjectFilter";
 import { UploadDropzone } from "../components/UploadDropzone";
 import { UploadQueue, type UploadQueueItem } from "../components/UploadQueue";
 import { ApiError, apiGet, apiPost, apiPostForm } from "../lib/api";
+import { EXPENSE_SCENE_OPTIONS } from "../lib/expenseScenes";
 import { validateUploadCandidate } from "../lib/fileValidation";
 import type { ProjectSummary } from "../lib/projects";
 
@@ -205,7 +206,13 @@ export function UploadPage() {
           {items.length ? (
             <div className="upload-batch-settings" aria-label="上传设置">
               <ProjectFilter disabled={busy || projects.length === 0} includeAll={false} label="归属项目" onChange={setProjectId} projects={projects} value={projectId} />
-              <label>业务场景<select value={scene} onChange={(event) => setScene(event.currentTarget.value)}><option value="">不指定</option><option value="travel">差旅</option><option value="purchase">采购</option><option value="office">办公</option><option value="meal">餐饮</option><option value="transport">交通</option></select></label>
+              <label>
+                业务场景
+                <select value={scene} onChange={(event) => setScene(event.currentTarget.value)}>
+                  <option value="">不指定</option>
+                  {EXPENSE_SCENE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
               <label className="check-row"><input checked={autoOcr} onChange={(event) => setAutoOcr(event.currentTarget.checked)} type="checkbox" /><span>上传后自动识别</span></label>
               <button className="button primary" disabled={readyCount === 0 || busy} onClick={uploadAllReady} type="button">{readyCount ? `上传 ${readyCount} 个文件` : "等待文件校验"}</button>
             </div>
