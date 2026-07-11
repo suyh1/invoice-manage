@@ -4463,6 +4463,77 @@ label {
 .app-shell .inline-message.error { border-color: var(--desk-ink); background-image: repeating-linear-gradient(135deg, #fafafa 0 5px, #f0f0ee 5px 6px); }
 .app-shell input[type="checkbox"] { accent-color: var(--desk-ink); }
 
+/* Archive fit and readable type corrections */
+.app-shell .invoice-archive {
+  min-width: 0;
+  margin: -38px -42px -48px -18px;
+  width: calc(100% + 60px);
+}
+.invoice-archive > .project-index,
+.invoice-archive > .invoice-workbench-main,
+.invoice-archive .archive-heading,
+.invoice-archive .archive-toolbar,
+.invoice-archive .invoice-archive-ledger { min-width: 0; }
+.invoice-archive .archive-heading { min-width: 0; }
+.invoice-archive .archive-heading > div:first-child { min-width: 0; flex: 1 1 auto; }
+.invoice-archive .saved-view-bar { max-width: 46%; min-width: 0; flex: 0 1 auto; overflow-x: auto; flex-wrap: nowrap; }
+.invoice-archive .invoice-archive-ledger { overflow: hidden; }
+.invoice-archive .invoice-table-wrap { max-width: 100%; overflow-x: auto; }
+.invoice-archive .project-rail-heading h2 { font-size: 17px; }
+.invoice-archive .project-rail-select span { font-size: 11px; }
+
+.app-shell .nav-list a { font-size: 13px; }
+.app-shell .section-label,
+.app-shell .desk-kicker { font-size: 10px; }
+.topbar-breadcrumb { font-size: 11px; }
+.shell-command-search { font-size: 11px; }
+.shell-local-state { font-size: 10px; }
+.app-shell .brand small { font-size: 10px; }
+.dashboard-editorial-heading h1 { font-size: 44px; }
+.dashboard-heading-action p { font-size: 11px; }
+.dashboard-heading-action a { font-size: 11px; }
+.dashboard-ledger article > span { font-size: 9px; }
+.dashboard-ledger p { font-size: 10px; }
+.desk-section-heading span { font-size: 9px; }
+.desk-section-heading h2 { font-size: 19px; }
+.desk-section-heading > a { font-size: 10px; }
+.priority-list strong { font-size: 12px; }
+.priority-list small { font-size: 10px; }
+.activity-ledger li strong { font-size: 10px; }
+.activity-ledger li p { font-size: 9px; }
+
+.invoice-archive .archive-heading h2 { font-size: 38px; }
+.invoice-archive .archive-heading p { font-size: 11px; }
+.invoice-archive .saved-view-bar .button { font-size: 10px; }
+.invoice-archive .archive-toolbar label { font-size: 10px; }
+.invoice-archive .archive-toolbar input,
+.invoice-archive .archive-toolbar select { font-size: 11px; }
+.invoice-archive .invoice-archive-ledger .panel-heading h2 { font-size: 18px; }
+.invoice-ledger-table th { font-size: 10px; }
+.invoice-ledger-table td { font-size: 11px; }
+.invoice-ledger-table td strong { font-size: 10px; }
+.invoice-ledger-table td span,
+.invoice-ledger-table td small { font-size: 9px; }
+.invoice-ledger-table td:nth-child(6) strong { font-size: 12px; }
+.invoice-ledger-table .button { font-size: 9px; }
+.review-ledger-header h2 { font-size: 38px; }
+.numbered-review-tabs button { font-size: 10px; }
+.review-ledger-table th { font-size: 10px; }
+.review-ledger-table td { font-size: 11px; }
+.review-ledger-table td strong { font-size: 10px; }
+.review-ledger-table td span:not(.status-token) { font-size: 9px; }
+.editorial-page-heading h2 { font-size: 36px; }
+.editorial-page-heading p { font-size: 11px; }
+.export-ledger .export-create-controls label { font-size: 10px; }
+.export-ledger .export-create-controls select { font-size: 11px; }
+.export-ledger .export-table th { font-size: 10px; }
+.export-ledger .export-table td { font-size: 11px; }
+.user-ledger .management-toolbar p { font-size: 11px; }
+.user-ledger .management-table th { font-size: 10px; }
+.user-ledger .management-table td { font-size: 11px; }
+.user-ledger .management-table td strong { font-size: 11px; }
+.user-ledger .management-table td span { font-size: 9px; }
+
 @media (max-width: 1180px) {
   .app-shell { grid-template-columns: 178px minmax(0, 1fr); }
   .app-shell .topbar { grid-template-columns: minmax(110px, 1fr) 260px minmax(280px, 1fr); padding-inline: 18px; }

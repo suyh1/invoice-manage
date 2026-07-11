@@ -40,6 +40,14 @@ describe("responsive workspace layout", () => {
     expect(styles).toContain(".invoice-workbench-main");
   });
 
+  it("keeps the invoice archive inside the workspace and readable", () => {
+    expect(styles).toMatch(/\.invoice-archive\s*\{[^}]*min-width:\s*0;/);
+    expect(styles).toMatch(/\.invoice-archive \.archive-heading\s*\{[^}]*min-width:\s*0;/);
+    expect(styles).toMatch(/\.invoice-archive \.saved-view-bar\s*\{[^}]*max-width:/);
+    expect(styles).toMatch(/\.invoice-ledger-table[^}]*font-size:\s*10px/);
+    expect(styles).toContain(".invoice-archive .project-rail-heading h2");
+  });
+
   it("defines the approved motion authentication visual contract", () => {
     const desktopSingleScreenRules = styles.match(
       /@media \(min-width: 811px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
