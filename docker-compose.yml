@@ -1,5 +1,7 @@
 name: invoice-ocr
 
+x-app-image: &app-image ${APP_IMAGE:-docker.io/nathan974/invoice-ocr-app:0.2.0}
+
 x-postgres-credentials: &postgres-credentials
   POSTGRES_DB: invoice_app
   POSTGRES_USER: invoice_app
@@ -12,14 +14,30 @@ x-app-environment: &app-environment
   OCR_CONFIG_ENCRYPTION_KEY: change-me-use-openssl-rand-base64-32
 
 services:
+  storage-init:
+    image: *app-image
+    user: '0:0'
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - >-
+        mkdir -p /data/uploads /data/exports /data/tmp &&
+        chown -R invoice:invoice /data/uploads /data/exports /data/tmp
+    volumes:
+      - app_uploads:/data/uploads
+      - app_exports:/data/exports
+      - app_tmp:/data/tmp
+    restart: 'no'
+
   app:
-    image: docker.io/nathan974/invoice-ocr-app:0.2.0
+    image: *app-image
     container_name: invoice-ocr-app
     command: ['web']
     environment:
       <<: *app-environment
       APP_SECRET_KEY: change-me-use-openssl-rand-hex-32
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -48,7 +66,7 @@ services:
       start_period: 20s
 
   worker:
-    image: docker.io/your-dockerhub-username/invoice-ocr-app:0.2.0
+    image: *app-image
     container_name: invoice-ocr-worker
     command: ['worker']
     environment: *app-environment
