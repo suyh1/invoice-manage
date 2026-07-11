@@ -18,6 +18,7 @@ describe("invoice workbench", () => {
     expect(invoicePage).toContain("project-index");
     expect(invoicePage).toContain("archive-toolbar");
     expect(invoicePage).toContain("invoice-archive-ledger");
+    expect(invoicePage).toContain("archive-viewbar-row");
     expect(invoicePage).toContain("INVOICE ARCHIVE");
   });
 

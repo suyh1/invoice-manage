@@ -223,10 +223,14 @@ export function InvoiceListPage() {
       <div className="invoice-workbench-main">
         <header className="invoice-list-header archive-heading">
           <div>
-            <span className="section-label">INVOICE ARCHIVE / {invoices.length} RECORDS</span>
+            <span className="section-label">INVOICE ARCHIVE / 发票档案</span>
             <h2>{selectedProject?.name || "全部发票"}</h2>
             <p>{selectedProject?.description || "按项目组织、筛选，并追踪每一张发票从原件到数据的完整路径。"}</p>
           </div>
+        </header>
+
+        <div className="archive-viewbar-row">
+          <span className="archive-viewbar-label">SAVED VIEWS / 常用视图</span>
           <div className="saved-view-bar" aria-label="常用视图">
             {savedViews.map((view) => (
               <button className={`button secondary ${isSavedViewActive(view.filters) ? "active" : ""}`} key={view.label} onClick={() => applySavedView(view.filters)} type="button">
@@ -234,7 +238,8 @@ export function InvoiceListPage() {
               </button>
             ))}
           </div>
-        </header>
+          <span className="archive-result-note">{invoices.length} 张 · {selectedProject?.name || "全部发票"}</span>
+        </div>
 
         <section className="surface-panel invoice-filters archive-toolbar" aria-label="发票筛选">
           <label>

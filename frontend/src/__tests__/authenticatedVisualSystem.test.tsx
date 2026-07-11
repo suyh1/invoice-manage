@@ -12,6 +12,7 @@ const uploadPage = readFileSync(new URL("../pages/UploadPage.tsx", import.meta.u
 const exportPage = readFileSync(new URL("../pages/ExportRecordsPage.tsx", import.meta.url), "utf8");
 const settingsPage = readFileSync(new URL("../pages/SettingsPage.tsx", import.meta.url), "utf8");
 const usersPage = readFileSync(new URL("../pages/UserManagementPage.tsx", import.meta.url), "utf8");
+const invoiceTable = readFileSync(new URL("../components/InvoiceTable.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
 
 describe("authenticated editorial visual system", () => {
@@ -51,5 +52,6 @@ describe("authenticated editorial visual system", () => {
     expect(exportPage).toContain("export-ledger");
     expect(settingsPage).toContain("settings-editorial");
     expect(usersPage).toContain("user-ledger");
+    expect(invoiceTable).toContain("empty-actions");
   });
 });

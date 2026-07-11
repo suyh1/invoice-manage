@@ -32,6 +32,10 @@ export function InvoiceTable({ invoices }: { invoices: InvoiceSummary[] }) {
       <div className="empty-state invoice-empty">
         <strong>没有匹配的发票</strong>
         <p>调整筛选条件，或先从上传识别页添加发票原件。</p>
+        <div className="empty-actions">
+          <a className="button primary" href="#/upload">上传发票</a>
+          <a className="button secondary" href="#/invoices">返回发票库</a>
+        </div>
       </div>
     );
   }
