@@ -4466,8 +4466,8 @@ label {
 /* Archive fit and readable type corrections */
 .app-shell .invoice-archive {
   min-width: 0;
-  margin: -38px -42px -48px -18px;
-  width: calc(100% + 60px);
+  margin: -38px -42px -48px 0;
+  width: calc(100% + 42px);
 }
 .invoice-archive > .project-index,
 .invoice-archive > .invoice-workbench-main,

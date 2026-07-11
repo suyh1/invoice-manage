@@ -42,6 +42,7 @@ describe("responsive workspace layout", () => {
 
   it("keeps the invoice archive inside the workspace and readable", () => {
     expect(styles).toMatch(/\.invoice-archive\s*\{[^}]*min-width:\s*0;/);
+    expect(styles).toMatch(/\.app-shell \.invoice-archive\s*\{[^}]*margin:\s*-38px -42px -48px 0;/);
     expect(styles).toMatch(/\.invoice-archive \.archive-heading\s*\{[^}]*min-width:\s*0;/);
     expect(styles).toMatch(/\.invoice-archive \.saved-view-bar\s*\{[^}]*max-width:/);
     expect(styles).toMatch(/\.invoice-ledger-table[^}]*font-size:\s*10px/);
