@@ -4898,3 +4898,11 @@ body,
     max-height: calc(100dvh - 24px);
   }
 }
+
+/* Bounded invoice archive workspace */
+.app-shell .invoice-archive {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  min-height: calc(100dvh - 62px);
+}

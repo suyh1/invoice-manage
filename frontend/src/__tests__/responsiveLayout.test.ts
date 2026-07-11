@@ -41,8 +41,11 @@ describe("responsive workspace layout", () => {
   });
 
   it("keeps the invoice archive inside the workspace and readable", () => {
+    const boundedArchiveRules = styles.split("/* Bounded invoice archive workspace */")[1] ?? "";
+
     expect(styles).toMatch(/\.invoice-archive\s*\{[^}]*min-width:\s*0;/);
-    expect(styles).toMatch(/\.app-shell \.invoice-archive\s*\{[^}]*width:\s*calc\(100% \+ 42px\);[^}]*margin:\s*-38px -42px -48px 0;/);
+    expect(styles).toContain("/* Bounded invoice archive workspace */");
+    expect(boundedArchiveRules).toMatch(/\.app-shell \.invoice-archive\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*margin:\s*0;/);
     expect(styles).toMatch(/\.invoice-archive \.archive-heading\s*\{[^}]*min-width:\s*0;/);
     expect(styles).toMatch(/\.invoice-archive \.archive-viewbar-row\s*\{[^}]*min-width:\s*0;/);
     expect(styles).toMatch(/\.app-shell \.workspace\s*\{[^}]*overflow-x:\s*clip;/);
