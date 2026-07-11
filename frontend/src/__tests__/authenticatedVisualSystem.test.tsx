@@ -36,6 +36,7 @@ describe("authenticated editorial visual system", () => {
     expect(styles).toContain("--desk-ink: #0a0a0a;");
     expect(styles).toContain(".shell-command-search");
     expect(styles).toContain(".dashboard-ledger");
+    expect(styles).toContain("Authenticated readability baseline");
   });
 
   it("uses ledger review queues and a document comparison workbench", () => {

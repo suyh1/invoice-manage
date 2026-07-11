@@ -42,12 +42,20 @@ describe("responsive workspace layout", () => {
 
   it("keeps the invoice archive inside the workspace and readable", () => {
     expect(styles).toMatch(/\.invoice-archive\s*\{[^}]*min-width:\s*0;/);
-    expect(styles).toMatch(/\.app-shell \.invoice-archive\s*\{[^}]*margin:\s*-38px -42px -48px;/);
+    expect(styles).toMatch(/\.app-shell \.invoice-archive\s*\{[^}]*width:\s*calc\(100% \+ 42px\);[^}]*margin:\s*-38px -42px -48px 0;/);
     expect(styles).toMatch(/\.invoice-archive \.archive-heading\s*\{[^}]*min-width:\s*0;/);
     expect(styles).toMatch(/\.invoice-archive \.archive-viewbar-row\s*\{[^}]*min-width:\s*0;/);
     expect(styles).toMatch(/\.app-shell \.workspace\s*\{[^}]*overflow-x:\s*clip;/);
-    expect(styles).toMatch(/\.invoice-ledger-table[^}]*font-size:\s*10px/);
+    expect(styles).toMatch(/\.invoice-ledger-table th[^}]*font-size:\s*var\(--desk-meta-size\)/);
     expect(styles).toContain(".invoice-archive .project-rail-heading h2");
+  });
+
+  it("defines a readable authenticated type floor", () => {
+    expect(styles).toContain("/* Authenticated readability baseline */");
+    expect(styles).toContain("--desk-body-size: 14px;");
+    expect(styles).toContain("--desk-meta-size: 12px;");
+    expect(styles).toMatch(/\.app-shell \.nav-list a[^}]*font-size:\s*var\(--desk-body-size\)/);
+    expect(styles).toMatch(/\.app-shell input,[\s\S]*?\.app-shell textarea[^}]*font-size:\s*var\(--desk-body-size\)/);
   });
 
   it("defines the approved motion authentication visual contract", () => {
