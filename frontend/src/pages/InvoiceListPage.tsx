@@ -18,6 +18,7 @@ type InvoiceFilters = {
   file_type: string;
   q: string;
   project_id: string;
+  seller_name: string;
   scene: string;
   status: string;
 };
@@ -27,6 +28,7 @@ const emptyFilters: InvoiceFilters = {
   file_type: "",
   q: "",
   project_id: "",
+  seller_name: "",
   scene: "",
   status: "",
 };
@@ -39,9 +41,15 @@ const savedViews: Array<{ filters: Partial<InvoiceFilters>; label: string }> = [
   { filters: { file_type: "pdf" }, label: "PDF" },
 ];
 
-export function InvoiceListPage() {
+type InvoiceRouteParams = {
+  projectId?: string;
+  q?: string;
+  sellerName?: string;
+};
+
+export function InvoiceListPage({ routeParams }: { routeParams?: InvoiceRouteParams }) {
   const auth = useAuth();
-  const [filters, setFilters] = useState<InvoiceFilters>(emptyFilters);
+  const [filters, setFilters] = useState<InvoiceFilters>(() => initialInvoiceFilters(routeParams));
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [message, setMessage] = useState("");
@@ -90,6 +98,10 @@ export function InvoiceListPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    setFilters(initialInvoiceFilters(routeParams));
+  }, [routeParams?.projectId, routeParams?.q, routeParams?.sellerName]);
 
   function applySavedView(viewFilters: Partial<InvoiceFilters>) {
     setFilters((current) => ({ ...emptyFilters, project_id: current.project_id, ...viewFilters }));
@@ -246,7 +258,7 @@ export function InvoiceListPage() {
             搜索
             <input
               value={filters.q}
-              onChange={(event) => setFilters({ ...filters, q: event.currentTarget.value })}
+              onChange={(event) => setFilters({ ...filters, q: event.currentTarget.value, seller_name: "" })}
               placeholder="号码、代码、销售方、购买方"
             />
           </label>
@@ -384,6 +396,15 @@ function buildQuery(filters: InvoiceFilters) {
   });
   const query = params.toString();
   return query ? `?${query}` : "";
+}
+
+function initialInvoiceFilters(routeParams?: InvoiceRouteParams): InvoiceFilters {
+  return {
+    ...emptyFilters,
+    project_id: routeParams?.projectId ?? "",
+    q: routeParams?.q ?? routeParams?.sellerName ?? "",
+    seller_name: routeParams?.sellerName ?? "",
+  };
 }
 
 function projectError(error: unknown): string {

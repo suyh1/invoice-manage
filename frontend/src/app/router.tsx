@@ -25,6 +25,9 @@ export type AppRoute = {
   label: string;
   params?: {
     invoiceId?: string;
+    projectId?: string;
+    q?: string;
+    sellerName?: string;
   };
   path: string;
   badge?: string;
@@ -51,12 +54,21 @@ export function useHashRoute(role: UserRole | null) {
 
   return useMemo(() => {
     const visibleIds = new Set(role ? visibleNavigationIds(role) : []);
-    if (hash.startsWith("#/invoices/")) {
+    const [path, query = ""] = hash.split("?", 2);
+    if (path.startsWith("#/invoices/")) {
       return visibleIds.has("invoices")
-        ? { ...appRoutes[1], label: "发票详情", params: { invoiceId: hash.replace("#/invoices/", "") } }
+        ? { ...appRoutes[1], label: "发票详情", params: { invoiceId: path.replace("#/invoices/", "") } }
         : appRoutes[0];
     }
-    return appRoutes.find((route) => route.path === hash && visibleIds.has(route.id)) ?? appRoutes[0];
+    const route = appRoutes.find((candidate) => candidate.path === path && visibleIds.has(candidate.id)) ?? appRoutes[0];
+    if (route.id !== "invoices") return route;
+    const searchParams = new URLSearchParams(query);
+    const params = {
+      projectId: searchParams.get("project_id") || undefined,
+      q: searchParams.get("q") || undefined,
+      sellerName: searchParams.get("seller_name") || undefined,
+    };
+    return Object.values(params).some(Boolean) ? { ...route, params } : route;
   }, [hash, role]);
 }
 
@@ -71,7 +83,7 @@ export function renderRoute(route: AppRoute) {
     return <InvoiceDetailPage invoiceId={route.params.invoiceId} />;
   }
   if (route.id === "invoices") {
-    return <InvoiceListPage />;
+    return <InvoiceListPage routeParams={route.params} />;
   }
   if (route.id === "upload") {
     return <UploadPage />;

@@ -27,4 +27,10 @@ describe("invoice workbench", () => {
     expect(router).not.toContain('"#/projects"');
     expect(router).not.toContain("ProjectManagementPage");
   });
+
+  it("initializes invoice filters from global search route parameters", () => {
+    expect(invoicePage).toContain("initialInvoiceFilters");
+    expect(invoicePage).toContain("seller_name");
+    expect(invoicePage).toContain("routeParams");
+  });
 });
