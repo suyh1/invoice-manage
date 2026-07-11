@@ -58,6 +58,12 @@ describe("responsive workspace layout", () => {
     expect(styles).toMatch(/\.app-shell input,[\s\S]*?\.app-shell textarea[^}]*font-size:\s*var\(--desk-body-size\)/);
   });
 
+  it("keeps global search reachable on mobile", () => {
+    expect(styles).toContain("/* Mobile global search access */");
+    expect(styles).toMatch(/\.app-shell \.shell-command-search\s*\{[^}]*display:\s*flex;[^}]*width:\s*42px;/);
+    expect(styles).toMatch(/\.app-shell \.topbar\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 42px auto;/);
+  });
+
   it("defines the approved motion authentication visual contract", () => {
     const desktopSingleScreenRules = styles.match(
       /@media \(min-width: 811px\) \{([\s\S]*?)@media \(max-width: 810px\)/,
