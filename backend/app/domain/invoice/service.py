@@ -6,7 +6,7 @@ import json
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import assert_invoice_access
@@ -36,16 +36,19 @@ INVOICE_PATCH_FIELDS = {
 
 
 class InvoiceService:
+    def visible_invoice_statement(self, current_user: User) -> Select[tuple[Invoice]]:
+        statement = select(Invoice).join(Invoice.document)
+        if current_user.role not in {UserRole.finance, UserRole.admin}:
+            statement = statement.where(InvoiceDocument.uploaded_by == current_user.id)
+        return statement.where(Invoice.status != InvoiceStatus.deleted)
+
     def list_invoices(self, db: Session, current_user: User, filters: dict[str, Any]) -> dict[str, Any]:
         statement = (
-            select(Invoice)
-            .join(Invoice.document)
+            self.visible_invoice_statement(current_user)
             .options(selectinload(Invoice.document).selectinload(InvoiceDocument.project))
             .order_by(Invoice.created_at.desc(), Invoice.id.desc())
         )
-        if current_user.role not in {UserRole.finance, UserRole.admin}:
-            statement = statement.where(InvoiceDocument.uploaded_by == current_user.id)
-        elif filters.get("uploaded_by"):
+        if current_user.role in {UserRole.finance, UserRole.admin} and filters.get("uploaded_by"):
             statement = statement.where(InvoiceDocument.uploaded_by == UUID(str(filters["uploaded_by"])))
 
         if filters.get("project_id"):
@@ -53,8 +56,6 @@ class InvoiceService:
 
         if filters.get("status"):
             statement = statement.where(Invoice.status == InvoiceStatus(filters["status"]))
-        else:
-            statement = statement.where(Invoice.status != InvoiceStatus.deleted)
         if filters.get("invoice_date_from"):
             statement = statement.where(Invoice.invoice_date >= _parse_date(filters["invoice_date_from"]))
         if filters.get("invoice_date_to"):

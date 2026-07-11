@@ -14,6 +14,7 @@ from app.api.routes.invoices import duplicate_router, router as invoices_router
 from app.api.routes.ocr_jobs import router as ocr_jobs_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes.review import router as review_router
+from app.api.routes.search import router as search_router
 from app.core.audit import install_secret_redaction_filter
 from app.core.config import get_settings
 from app.core.errors import AppError, app_error_handler
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     application.include_router(ocr_jobs_router)
     application.include_router(projects_router)
     application.include_router(review_router)
+    application.include_router(search_router)
     application.include_router(duplicate_router)
     application.include_router(invoices_router)
     application.include_router(exports_router)
