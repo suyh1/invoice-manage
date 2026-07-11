@@ -202,12 +202,13 @@ volumes:
 
 ```bash
 vim docker-compose.yml
-docker compose run --rm app migrate
 docker compose up -d
 docker compose ps
 ```
 
 编辑时必须替换镜像地址、数据库密码、`APP_SECRET_KEY` 和 `OCR_CONFIG_ENCRYPTION_KEY`。如修改了宿主机端口，后续访问地址和健康检查命令也使用该端口。
+
+`app` 容器启动时会先执行 `alembic upgrade head`，成功后再启动 Web/API。首次空数据库会自动创建表结构；已有数据库只会应用尚未执行的迁移版本，不会重建表。若高级运维需要单独执行迁移，仍可运行 `docker compose run --rm app migrate`。
 
 健康检查：
 
@@ -346,14 +347,13 @@ docker compose down
 
 ```bash
 HOST_PORT=8080
-docker compose run --rm app migrate
 docker compose up -d
 curl -fsS "http://localhost:${HOST_PORT}/readyz"
 ```
 
 执行前先将 Compose 中 `app` 和 `worker` 的镜像更新为目标版本。
 
-迁移必须在新版本服务启动前执行。上述命令会复用现有命名 volumes，不会删除 PostgreSQL、上传原件或导出文件。不要在升级流程中执行 `docker compose down -v`。
+`app` 会在启动 Web/API 前自动执行缺失的迁移。上述命令会复用现有命名 volumes，不会删除 PostgreSQL、上传原件或导出文件。不要在升级流程中执行 `docker compose down -v`。
 
 升级后检查：
 

@@ -47,12 +47,7 @@ services:
     image: invoice-ocr-e2e-app
     platform: linux/amd64
     build: *app-build
-    command:
-      - sh
-      - -c
-      - |
-        alembic -c /app/alembic.ini upgrade head
-        exec uvicorn app.main:app --host 0.0.0.0 --port 8080
+    command: ["web"]
     environment:
       <<: *app-env
     depends_on:
@@ -75,7 +70,7 @@ services:
   worker:
     image: invoice-ocr-e2e-app
     platform: linux/amd64
-    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    command: ["worker"]
     environment:
       <<: *app-env
       MOCK_OCR_FIXTURE_PATH: /e2e/fixtures/vat_invoice_success.json

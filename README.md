@@ -35,16 +35,17 @@
 
 真实密码和应用密钥会保存在部署用 Compose 文件中，不要把修改后的生产配置提交到公开仓库。OCR 运营商的 `SecretId`、`SecretKey` 不写入 Compose，启动后由管理员在设置页录入。
 
-构建、迁移并启动：
+构建并启动：
 
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
-docker compose run --rm app migrate
 docker compose up -d
 docker compose ps
 ```
 
 本地构建时，应将 Compose 中 `app` 和 `worker` 的 `image` 设置为 `invoice-ocr-app:0.2.0`。
+
+`app` 容器启动时会先自动执行数据库迁移，再启动 Web/API 服务。新数据库会自动创建表结构；已升级到最新版本的数据库会被 Alembic 判定为无变更，不会重建表或清空数据。高级运维场景仍可手动运行 `docker compose run --rm app migrate`。
 
 打开 `http://localhost:<HOST_PORT>`（默认端口为 `8080`）。新数据库会显示初始化落地页，创建的第一个账号拥有管理员权限。已经初始化的数据库会显示登录表单。
 
@@ -84,11 +85,10 @@ docker compose down
 
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
-docker compose run --rm app migrate
 docker compose up -d
 ```
 
-这些命令不会删除现有 volumes。详细备份、恢复和外部 HTTPS 说明见部署文档。
+`app` 容器会在启动 Web/API 前自动执行缺失的数据库迁移。这些命令不会删除现有 volumes。详细备份、恢复和外部 HTTPS 说明见部署文档。
 
 ## 本地开发与测试
 

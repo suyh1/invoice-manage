@@ -9,7 +9,7 @@
 - 审阅 CI 生成的 SBOM 和漏洞扫描结果。
 - 确认生产 `docker-compose.yml` 中的数据库密码和应用加密密钥已替换，并受到访问控制。
 - 确认腾讯云 `SecretId`、`SecretKey` 不存在于 Compose、shell history 和 CI 日志。
-- 在启动新版本前执行数据库迁移。
+- 确认 `app` 容器启动时自动执行数据库迁移；高级排障时可手动运行 `docker compose run --rm app migrate`。
 - 升级时保留 PostgreSQL、Redis、上传、导出和临时文件 volumes。
 - 检查 `/healthz`、`/readyz`、用户、项目、待校对和导出流程。
 
@@ -18,12 +18,11 @@
 ```bash
 docker buildx build --platform linux/amd64 --load -t invoice-ocr-app:0.2.0 .
 docker inspect invoice-ocr-app:0.2.0 --format '{{.Config.User}} {{.Architecture}}'
-docker compose run --rm app migrate
 docker compose up -d
 docker compose ps
 ```
 
-执行前将 Compose 中 `app` 和 `worker` 的 `image` 更新为本次发布标签。
+执行前将 Compose 中 `app` 和 `worker` 的 `image` 更新为本次发布标签。`app` 容器会在启动 Web/API 前自动执行 Alembic 迁移。
 
 镜像检查预期输出：
 
@@ -33,7 +32,7 @@ invoice amd64
 
 ## 首次初始化
 
-1. 完成迁移并启动服务。
+1. 启动服务；`app` 容器会自动完成数据库迁移。
 2. 打开 `http://<host>:<HOST_PORT>`。
 3. 初始化落地页只在系统没有用户时显示。
 4. 创建第一位用户，该账号自动获得管理员角色并立即登录。
@@ -85,7 +84,6 @@ docker compose ps
 
 ```bash
 HOST_PORT=8080
-docker compose run --rm app migrate
 docker compose up -d
 curl -fsS "http://localhost:${HOST_PORT}/readyz"
 ```
