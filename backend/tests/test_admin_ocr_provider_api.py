@@ -170,6 +170,12 @@ def test_admin_can_switch_default_provider_and_rotate_credentials() -> None:
 
         set_default_response = client.post(f"/api/v1/admin/ocr-providers/{second.id}/set-default")
         assert set_default_response.status_code == 200
+        session.refresh(first)
+        session.refresh(second)
+        assert first.enabled is False
+        assert first.is_default is False
+        assert second.enabled is True
+        assert second.is_default is True
 
         rotate_response = client.post(
             f"/api/v1/admin/ocr-providers/{first.id}/rotate-credential",
@@ -185,3 +191,65 @@ def test_admin_can_switch_default_provider_and_rotate_credentials() -> None:
         assert rotate_audit.resource_id == first.id
         assert "AKID2" not in str(rotate_audit.audit_metadata)
         assert "SECRET2" not in str(rotate_audit.audit_metadata)
+
+
+def test_admin_can_delete_provider_config_directly() -> None:
+    with make_session() as session:
+        admin = create_user(
+            session,
+            email="delete-admin@example.com",
+            password="password",
+            display_name="Delete Admin",
+            role=UserRole.admin,
+        )
+        provider = OcrProviderConfig(
+            provider="mock",
+            display_name="Disposable OCR",
+            enabled=True,
+            is_default=True,
+            quota_source=QuotaSource.manual,
+        )
+        session.add_all([admin, provider])
+        session.commit()
+        provider_id = provider.id
+        client = make_client(session)
+        client.cookies.set("session", create_session_token(admin.id))
+
+        response = client.delete(f"/api/v1/admin/ocr-providers/{provider_id}")
+
+        assert response.status_code == 200
+        assert response.json()["data"]["deleted"] is True
+        assert session.get(OcrProviderConfig, provider_id) is None
+
+
+def test_admin_cannot_save_used_quota_greater_than_total() -> None:
+    with make_session() as session:
+        admin = create_user(
+            session,
+            email="quota-admin@example.com",
+            password="password",
+            display_name="Quota Admin",
+            role=UserRole.admin,
+        )
+        session.commit()
+        client = make_client(session)
+        client.cookies.set("session", create_session_token(admin.id))
+
+        response = client.post(
+            "/api/v1/admin/ocr-providers",
+            json={
+                "provider": "mock",
+                "display_name": "Mock OCR",
+                "enabled": True,
+                "is_default": True,
+                "quota": {
+                    "source": "manual",
+                    "free_quota_total": 4,
+                    "free_quota_used": 1000,
+                    "quota_warning_percent": 80,
+                    "quota_warning_remaining": 100,
+                },
+            },
+        )
+
+        assert response.status_code == 422

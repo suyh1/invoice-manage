@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.config import CredentialCipher, get_settings
@@ -97,10 +97,11 @@ class OcrProviderConfigService:
 
     def set_default(self, db: Session, config: OcrProviderConfig, *, actor) -> OcrProviderConfig:
         existing_defaults = list(
-            db.scalars(select(OcrProviderConfig).where(OcrProviderConfig.id != config.id, OcrProviderConfig.is_default.is_(True)))
+            db.scalars(select(OcrProviderConfig).where(OcrProviderConfig.id != config.id))
         )
         for other in existing_defaults:
             other.is_default = False
+            other.enabled = False
             other.updated_by = actor.id
         if existing_defaults:
             db.flush()
@@ -109,6 +110,14 @@ class OcrProviderConfigService:
         config.updated_by = actor.id
         db.flush()
         return config
+
+    def delete_config(self, db: Session, config: OcrProviderConfig) -> None:
+        db.execute(delete(OcrQuotaAlert).where(OcrQuotaAlert.provider_config_id == config.id))
+        from app.domain.ocr.models import OcrProviderUsageDaily
+
+        db.execute(delete(OcrProviderUsageDaily).where(OcrProviderUsageDaily.provider_config_id == config.id))
+        db.delete(config)
+        db.flush()
 
     def calibrate_quota(self, db: Session, config: OcrProviderConfig, payload: dict[str, Any], *, actor) -> OcrProviderConfig:
         config.free_quota_total = payload.get("free_quota_total")

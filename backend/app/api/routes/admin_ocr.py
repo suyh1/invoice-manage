@@ -4,14 +4,14 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_role
 from app.core.audit import record_audit_log
 from app.db.session import get_db
-from app.domain.ocr.models import OcrQuotaAlert, QuotaAlertStatus
+from app.domain.ocr.models import OcrProviderConfig, OcrQuotaAlert, QuotaAlertStatus
 from app.domain.ocr.provider_config import OcrProviderConfigService
 from app.domain.ocr.quota import acknowledge_alert
 from app.domain.ocr.registry import get_registry
@@ -19,6 +19,34 @@ from app.domain.user.models import User, UserRole
 
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin-ocr"])
+
+
+class QuotaPayload(BaseModel):
+    source: str | None = None
+    free_quota_total: int | None = None
+    free_quota_used: int | None = None
+    quota_warning_percent: int | None = None
+    quota_warning_remaining: int | None = None
+    quota_reset_at: str | None = None
+
+    @model_validator(mode="after")
+    def validate_values(self):
+        numeric_values = {
+            "free_quota_total": self.free_quota_total,
+            "free_quota_used": self.free_quota_used,
+            "quota_warning_remaining": self.quota_warning_remaining,
+        }
+        if any(value is not None and value < 0 for value in numeric_values.values()):
+            raise ValueError("quota values must not be negative")
+        if self.quota_warning_percent is not None and not 1 <= self.quota_warning_percent <= 100:
+            raise ValueError("quota warning percent must be between 1 and 100")
+        if (
+            self.free_quota_total is not None
+            and self.free_quota_used is not None
+            and self.free_quota_used > self.free_quota_total
+        ):
+            raise ValueError("used quota must not exceed total quota")
+        return self
 
 
 class ProviderPayload(BaseModel):
@@ -32,7 +60,7 @@ class ProviderPayload(BaseModel):
     action: str | None = None
     api_version: str | None = None
     qps_limit: int | None = None
-    quota: dict[str, Any] | None = None
+    quota: QuotaPayload | None = None
 
 
 class ProviderPatchPayload(BaseModel):
@@ -45,7 +73,7 @@ class ProviderPatchPayload(BaseModel):
     action: str | None = None
     api_version: str | None = None
     qps_limit: int | None = None
-    quota: dict[str, Any] | None = None
+    quota: QuotaPayload | None = None
 
 
 class RotateCredentialPayload(BaseModel):
@@ -58,6 +86,20 @@ class QuotaCalibrationPayload(BaseModel):
     free_quota_used: int | None = None
     quota_reset_at: str | None = None
     note: str | None = None
+
+    @model_validator(mode="after")
+    def validate_values(self):
+        if self.free_quota_total is not None and self.free_quota_total < 0:
+            raise ValueError("total quota must not be negative")
+        if self.free_quota_used is not None and self.free_quota_used < 0:
+            raise ValueError("used quota must not be negative")
+        if (
+            self.free_quota_total is not None
+            and self.free_quota_used is not None
+            and self.free_quota_used > self.free_quota_total
+        ):
+            raise ValueError("used quota must not exceed total quota")
+        return self
 
 
 @router.get("/ocr-providers")
@@ -130,6 +172,30 @@ def update_ocr_provider(
     db.commit()
     db.refresh(updated)
     return {"data": service.serialize_config(updated)}
+
+
+@router.delete("/ocr-providers/{provider_config_id}")
+def delete_ocr_provider(
+    provider_config_id: UUID,
+    request: Request,
+    current_user: User = Depends(require_role(UserRole.admin)),
+    db: Session = Depends(get_db),
+) -> dict[str, dict[str, Any]]:
+    service = OcrProviderConfigService()
+    config = service.get_config(db, provider_config_id)
+    metadata = {"provider": config.provider, "display_name": config.display_name}
+    service.delete_config(db, config)
+    record_audit_log(
+        db,
+        actor=current_user,
+        action="ocr_provider.delete",
+        resource_type="ocr_provider_config",
+        resource_id=provider_config_id,
+        metadata=metadata,
+        request=request,
+    )
+    db.commit()
+    return {"data": {"deleted": True, "id": str(provider_config_id)}}
 
 
 @router.post("/ocr-providers/{provider_config_id}/test")
@@ -251,7 +317,15 @@ def list_ocr_quota_alerts(
         raise AppError("AUTH_FORBIDDEN", "You do not have permission to access this resource", status_code=403)
     service = OcrProviderConfigService()
     alerts = list(
-        db.scalars(select(OcrQuotaAlert).where(OcrQuotaAlert.status.in_([QuotaAlertStatus.active, QuotaAlertStatus.acknowledged])))
+        db.scalars(
+            select(OcrQuotaAlert)
+            .join(OcrProviderConfig, OcrProviderConfig.id == OcrQuotaAlert.provider_config_id)
+            .where(
+                OcrProviderConfig.enabled.is_(True),
+                OcrProviderConfig.is_default.is_(True),
+                OcrQuotaAlert.status.in_([QuotaAlertStatus.active, QuotaAlertStatus.acknowledged]),
+            )
+        )
     )
     return {"data": [service.serialize_alert(alert) for alert in alerts]}
 

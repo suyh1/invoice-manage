@@ -73,3 +73,35 @@ def test_acknowledge_alert_marks_status() -> None:
 
         assert alerts[0].status == QuotaAlertStatus.acknowledged
         assert alerts[0].acknowledged_by == actor.id
+
+
+def test_quota_snapshot_preserves_total_used_semantics_without_false_alert() -> None:
+    with make_session() as session:
+        provider = make_provider()
+        provider.free_quota_total = 1000
+        provider.free_quota_used = 4
+        session.add(provider)
+        session.commit()
+
+        alerts = sync_quota_alerts(session, provider)
+
+        assert alerts == []
+        assert provider.free_quota_total - provider.free_quota_used == 996
+
+
+def test_sync_quota_alerts_refreshes_existing_warning_snapshot() -> None:
+    with make_session() as session:
+        provider = make_provider()
+        provider.free_quota_used = 80
+        session.add(provider)
+        session.commit()
+
+        first = sync_quota_alerts(session, provider)[0]
+        session.commit()
+        provider.free_quota_used = 90
+
+        refreshed = sync_quota_alerts(session, provider)[0]
+
+        assert refreshed.id == first.id
+        assert refreshed.quota_used == 90
+        assert refreshed.quota_remaining == 10

@@ -110,10 +110,10 @@ def sync_quota_alerts(db: Session, provider_config: OcrProviderConfig) -> list[O
             alert.resolved_at = datetime.now(UTC)
 
     existing = next((alert for alert in active_alerts if alert.level == level and alert.status == QuotaAlertStatus.active), None)
+    remaining = None
+    if provider_config.free_quota_total is not None and provider_config.free_quota_used is not None:
+        remaining = max(provider_config.free_quota_total - provider_config.free_quota_used, 0)
     if existing is None:
-        remaining = None
-        if provider_config.free_quota_total is not None and provider_config.free_quota_used is not None:
-            remaining = max(provider_config.free_quota_total - provider_config.free_quota_used, 0)
         existing = OcrQuotaAlert(
             provider_config_id=provider_config.id,
             level=level,
@@ -124,6 +124,11 @@ def sync_quota_alerts(db: Session, provider_config: OcrProviderConfig) -> list[O
             quota_remaining=remaining,
         )
         db.add(existing)
+    else:
+        existing.message = build_alert_message(level, provider_config)
+        existing.quota_total = provider_config.free_quota_total
+        existing.quota_used = provider_config.free_quota_used
+        existing.quota_remaining = remaining
     db.flush()
     return [existing]
 

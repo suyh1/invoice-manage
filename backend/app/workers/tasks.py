@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.audit import record_audit_log
@@ -70,7 +71,23 @@ def process_ocr_job(
     if job.status in {OcrJobStatus.completed, OcrJobStatus.failed_final, OcrJobStatus.canceled}:
         return job
 
-    provider_config = job.provider_config
+    provider_config = db.scalar(
+        select(OcrProviderConfig).where(OcrProviderConfig.enabled.is_(True), OcrProviderConfig.is_default.is_(True))
+    )
+    if provider_config is None:
+        job.status = OcrJobStatus.retry_scheduled
+        job.next_retry_at = now + timedelta(seconds=30)
+        job.error_code = "OCR_PROVIDER_NOT_CONFIGURED"
+        job.error_message = "No active OCR provider is configured"
+        job.document.status = DocumentStatus.ocr_queued
+        db.commit()
+        return job
+
+    job.provider = provider_config.provider
+    job.endpoint = provider_config.endpoint
+    job.action = provider_config.action
+    job.version = provider_config.api_version
+    job.region = provider_config.region
     decision = _rate_limiter(rate_limiter).acquire(
         provider_config.provider,
         provider_config.region,

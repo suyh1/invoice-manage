@@ -1625,6 +1625,218 @@ label {
   font-size: 13px;
 }
 
+.provider-management,
+.upload-flow {
+  display: grid;
+  gap: 18px;
+}
+
+.provider-toolbar {
+  border-bottom: 1px solid var(--line-strong);
+  padding-bottom: 18px;
+}
+
+.provider-toolbar p {
+  max-width: 68ch;
+}
+
+.provider-list {
+  display: grid;
+  gap: 10px;
+}
+
+.provider-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px;
+}
+
+.provider-card.active {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.provider-card-main,
+.provider-identity,
+.provider-card-actions {
+  display: flex;
+  align-items: center;
+}
+
+.provider-card-main {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.provider-identity {
+  min-width: 0;
+  gap: 12px;
+}
+
+.provider-identity strong,
+.provider-identity span {
+  display: block;
+}
+
+.provider-identity span {
+  margin-top: 3px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.provider-mark {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border-radius: var(--radius-small);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 800;
+}
+
+.provider-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--line);
+}
+
+.provider-metrics > div {
+  min-width: 0;
+  background: var(--surface-muted);
+  padding: 10px 12px;
+}
+
+.provider-metrics dt {
+  color: var(--ink-subtle);
+  font-size: 11px;
+}
+
+.provider-metrics dd {
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.provider-metrics .metric-text {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.provider-card-actions {
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.provider-row-message {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.provider-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+.provider-detail-line {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+  background: var(--surface-muted);
+  padding: 11px 12px;
+}
+
+.workflow-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid var(--line);
+  color: var(--ink-subtle);
+  padding: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.workflow-steps li span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-muted);
+}
+
+.workflow-steps li.active {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.workflow-steps li.active span {
+  background: var(--accent);
+  color: white;
+}
+
+.upload-stage {
+  display: grid;
+  gap: 14px;
+}
+
+.upload-batch-settings {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) auto auto;
+  gap: 12px;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.upload-batch-settings .check-row {
+  min-height: 44px;
+  align-self: end;
+}
+
+@media (max-width: 800px) {
+  .provider-metrics,
+  .upload-batch-settings {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .provider-card-main {
+    align-items: flex-start;
+  }
+
+  .provider-metrics,
+  .upload-batch-settings {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-steps li {
+    font-size: 11px;
+  }
+}
+
 .check-row {
   display: flex;
   align-items: center;

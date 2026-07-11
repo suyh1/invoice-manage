@@ -164,7 +164,7 @@ def test_upload_document_requires_authentication(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "AUTH_REQUIRED"
 
 
-def test_upload_document_creates_document_without_ocr_job_when_no_provider(
+def test_upload_document_queues_provider_independent_ocr_job_when_no_provider(
     client: TestClient,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
@@ -180,7 +180,7 @@ def test_upload_document_creates_document_without_ocr_job_when_no_provider(
     db_session.commit()
     client.cookies.set("session", create_session_token(user.id))
 
-    monkeypatch.setattr("app.api.routes.documents.find_default_ocr_provider", lambda db: None)
+    monkeypatch.setattr("app.api.routes.documents.process_ocr_job_task.delay", lambda job_id: None)
     monkeypatch.setattr(
         "app.api.routes.documents.get_settings",
         lambda: Settings(
@@ -198,15 +198,15 @@ def test_upload_document_creates_document_without_ocr_job_when_no_provider(
     )
 
     assert response.status_code == 200
-    assert response.json()["data"]["ocr_job_id"] is None
-    assert response.json()["data"]["status"] == "uploaded"
+    assert response.json()["data"]["ocr_job_id"] is not None
+    assert response.json()["data"]["status"] == "ocr_queued"
 
     saved = db_session.query(InvoiceDocument).one()
     assert saved.uploaded_by == user.id
     assert saved.image_width == 120
     assert saved.image_height == 80
     assert saved.page_count == 1
-    assert saved.status.value == "uploaded"
+    assert saved.status.value == "ocr_queued"
     assert saved.project.system_key == "uncategorized"
     assert (tmp_path / saved.storage_key).exists()
     audit = db_session.query(AuditLog).filter_by(action="document.upload").one()

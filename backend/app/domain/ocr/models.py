@@ -76,7 +76,6 @@ class OcrProviderConfig(Base, TimestampMixin):
 
     created_by_user = relationship("User", foreign_keys=[created_by], back_populates="configured_ocr_providers")
     updated_by_user = relationship("User", foreign_keys=[updated_by])
-    ocr_jobs = relationship("OcrJob", back_populates="provider_config")
     usage_days = relationship("OcrProviderUsageDaily", back_populates="provider_config")
     quota_alerts = relationship("OcrQuotaAlert", back_populates="provider_config")
 
@@ -144,11 +143,10 @@ class OcrJob(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     document_id: Mapped[UUID] = mapped_column(ForeignKey("invoice_documents.id", ondelete="CASCADE"), nullable=False)
     invoice_id: Mapped[UUID | None] = mapped_column(ForeignKey("invoices.id", ondelete="SET NULL"))
-    provider_config_id: Mapped[UUID] = mapped_column(ForeignKey("ocr_provider_configs.id", ondelete="RESTRICT"), nullable=False)
-    provider: Mapped[str] = mapped_column(String(40), nullable=False)
-    endpoint: Mapped[str] = mapped_column(String(255), nullable=False)
-    action: Mapped[str] = mapped_column(String(80), nullable=False)
-    version: Mapped[str] = mapped_column(String(40), nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(40))
+    endpoint: Mapped[str | None] = mapped_column(String(255))
+    action: Mapped[str | None] = mapped_column(String(80))
+    version: Mapped[str | None] = mapped_column(String(40))
     region: Mapped[str | None] = mapped_column(String(80))
     status: Mapped[OcrJobStatus] = mapped_column(
         Enum(OcrJobStatus, name="ocr_job_status", native_enum=False, create_constraint=True),
@@ -169,7 +167,6 @@ class OcrJob(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     document = relationship("InvoiceDocument", back_populates="ocr_jobs")
-    provider_config = relationship("OcrProviderConfig", back_populates="ocr_jobs")
     invoice = relationship("Invoice", foreign_keys=[invoice_id], back_populates="ocr_jobs")
 
     __table_args__ = (
@@ -177,3 +174,16 @@ class OcrJob(Base):
         Index("ix_ocr_jobs_document_id_created_at", "document_id", "created_at"),
         Index("ix_ocr_jobs_status_created_at", "status", "created_at"),
     )
+
+    @property
+    def provider_config(self) -> None:
+        return None
+
+    @provider_config.setter
+    def provider_config(self, config: OcrProviderConfig) -> None:
+        """Compatibility for fixtures: copy an execution snapshot without binding the job."""
+        self.provider = config.provider
+        self.endpoint = config.endpoint
+        self.action = config.action
+        self.version = config.api_version
+        self.region = config.region

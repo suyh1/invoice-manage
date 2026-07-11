@@ -190,48 +190,28 @@ export function UploadPage() {
           <h2>先检查文件，再创建 OCR 作业</h2>
           <p>上传前会拦截不支持的类型、GIF、Base64 后超过 10MB 的文件，以及超出 OCR 尺寸限制的图片。</p>
         </div>
-        <OcrQuotaStatus />
+        <OcrQuotaStatus compact />
       </section>
 
-      <section className="upload-workspace">
-        <div className="upload-main">
-          <UploadDropzone disabled={busy} onFiles={addFiles} />
-          <UploadQueue items={items} onRemove={removeItem} onRetry={retryItem} onUploadReady={uploadReadyById} />
-        </div>
+      <section className="upload-flow" aria-label="上传识别流程">
+        <ol className="workflow-steps">
+          <li className="active"><span>1</span>选择文件</li>
+          <li className={items.length ? "active" : ""}><span>2</span>确认归属</li>
+          <li className={busy || items.some((item) => ["uploaded", "ocr_queued", "recognizing", "completed", "failed"].includes(item.status)) ? "active" : ""}><span>3</span>上传与识别</li>
+        </ol>
 
-        <aside className="surface-panel upload-controls" aria-label="上传设置">
-          <div>
-            <span className="section-label">批次设置</span>
-            <h2>上传前确认</h2>
-          </div>
-          <ProjectFilter
-            disabled={busy || projects.length === 0}
-            includeAll={false}
-            label="归属项目"
-            onChange={setProjectId}
-            projects={projects}
-            value={projectId}
-          />
-          <label>
-            业务场景
-            <select value={scene} onChange={(event) => setScene(event.currentTarget.value)}>
-              <option value="">不指定</option>
-              <option value="travel">差旅</option>
-              <option value="purchase">采购</option>
-              <option value="office">办公</option>
-              <option value="meal">餐饮</option>
-              <option value="transport">交通</option>
-            </select>
-          </label>
-          <label className="check-row">
-            <input checked={autoOcr} onChange={(event) => setAutoOcr(event.currentTarget.checked)} type="checkbox" />
-            <span>上传后自动创建 OCR 作业</span>
-          </label>
-          <button className="button primary full-width" disabled={readyCount === 0 || busy} onClick={uploadAllReady} type="button">
-            {readyCount ? `上传 ${readyCount} 个文件` : "上传已校验文件"}
-          </button>
-          <p>若 OCR 额度已进入 warning 或 critical 状态，请先在设置中检查资源包或计费方式。</p>
-        </aside>
+        <div className="upload-stage">
+          <UploadDropzone disabled={busy} onFiles={addFiles} />
+          {items.length ? (
+            <div className="upload-batch-settings" aria-label="上传设置">
+              <ProjectFilter disabled={busy || projects.length === 0} includeAll={false} label="归属项目" onChange={setProjectId} projects={projects} value={projectId} />
+              <label>业务场景<select value={scene} onChange={(event) => setScene(event.currentTarget.value)}><option value="">不指定</option><option value="travel">差旅</option><option value="purchase">采购</option><option value="office">办公</option><option value="meal">餐饮</option><option value="transport">交通</option></select></label>
+              <label className="check-row"><input checked={autoOcr} onChange={(event) => setAutoOcr(event.currentTarget.checked)} type="checkbox" /><span>上传后自动识别</span></label>
+              <button className="button primary" disabled={readyCount === 0 || busy} onClick={uploadAllReady} type="button">{readyCount ? `上传 ${readyCount} 个文件` : "等待文件校验"}</button>
+            </div>
+          ) : null}
+        </div>
+        {items.length ? <UploadQueue items={items} onRemove={removeItem} onRetry={retryItem} onUploadReady={uploadReadyById} /> : null}
       </section>
     </div>
   );

@@ -62,10 +62,9 @@ async def upload_document(
     db.add(document)
 
     ocr_job: OcrJob | None = None
-    provider = find_default_ocr_provider(db) if auto_ocr else None
-    if provider is not None:
+    if auto_ocr:
         document.status = DocumentStatus.ocr_queued
-        ocr_job = build_ocr_job(document, provider, validated, idempotency_key=idempotency_key)
+        ocr_job = build_ocr_job(document, validated, idempotency_key=idempotency_key)
         db.add(ocr_job)
 
     db.flush()
@@ -115,21 +114,14 @@ def find_default_ocr_provider(db: Session) -> OcrProviderConfig | None:
 
 def build_ocr_job(
     document: InvoiceDocument,
-    provider: OcrProviderConfig,
     validated_upload: ValidatedUpload,
     *,
     idempotency_key: str | None,
 ) -> OcrJob:
     pdf_page_number = 1 if validated_upload.file_ext == "pdf" else None
-    source = idempotency_key or f"{provider.id}:{provider.action}:{pdf_page_number or 0}:{validated_upload.sha256}"
+    source = idempotency_key or f"{pdf_page_number or 0}:{validated_upload.sha256}"
     return OcrJob(
         document=document,
-        provider_config_id=provider.id,
-        provider=provider.provider,
-        endpoint=provider.endpoint,
-        action=provider.action,
-        version=provider.api_version,
-        region=provider.region,
         status=OcrJobStatus.queued,
         idempotency_key=hashlib.sha256(source.encode("utf-8")).hexdigest(),
         raw_request_meta={

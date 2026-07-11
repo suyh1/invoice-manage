@@ -12,7 +12,7 @@ from app.db.base import Base, import_all_models
 from app.domain.file.models import DocumentStatus, InvoiceDocument
 from app.domain.invoice.models import Invoice, InvoiceItem, InvoiceStatus
 from app.domain.ocr.client import OcrRecognitionResult
-from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderUsageDaily
+from app.domain.ocr.models import OcrJob, OcrJobStatus, OcrProviderConfig, OcrProviderUsageDaily
 from app.domain.ocr.provider_config import OcrProviderConfigService
 from app.domain.project.service import ProjectService
 from app.domain.user.models import AuditLog, UserRole
@@ -85,12 +85,6 @@ def seed_ocr_job(session: Session, storage_root: Path, *, attempt_count: int = 0
     )
     job = OcrJob(
         document=document,
-        provider_config=provider,
-        provider=provider.provider,
-        endpoint=provider.endpoint,
-        action=provider.action,
-        version=provider.api_version,
-        region=provider.region,
         status=OcrJobStatus.queued,
         attempt_count=attempt_count,
         idempotency_key=f"job-{attempt_count}",
@@ -99,6 +93,43 @@ def seed_ocr_job(session: Session, storage_root: Path, *, attempt_count: int = 0
     session.add_all([document, job])
     session.commit()
     return job
+
+
+def test_process_ocr_job_selects_provider_when_attempt_starts(tmp_path) -> None:
+    with make_session() as session:
+        job = seed_ocr_job(session, tmp_path)
+        original = session.scalar(select(OcrProviderConfig).where(OcrProviderConfig.is_default.is_(True)))
+        actor = original.created_by_user
+        replacement = OcrProviderConfigService().create_config(
+            session,
+            {
+                "provider": "mock",
+                "display_name": "Replacement OCR",
+                "enabled": True,
+                "is_default": True,
+                "quota": {"source": "manual", "free_quota_total": 1000, "free_quota_used": 4},
+            },
+            actor=actor,
+        )
+        session.commit()
+
+        class SuccessfulClient:
+            def recognize_file(self, provider_config, credential, upload):
+                assert provider_config.id == replacement.id
+                return OcrRecognitionResult(raw_response={"VatInvoiceInfos": [], "Items": []}, request_id="req-replacement")
+
+        processed = process_ocr_job(
+            job.id,
+            db=session,
+            storage_root=tmp_path,
+            registry=FakeRegistry(SuccessfulClient()),
+            rate_limiter=AllowingLimiter(),
+            now=datetime(2026, 7, 9, 12, 0, tzinfo=UTC),
+        )
+
+        assert processed.provider == "mock"
+        assert processed.endpoint == replacement.endpoint
+        assert processed.action == replacement.action
 
 
 def test_process_ocr_job_completes_and_normalizes_invoice(tmp_path) -> None:
