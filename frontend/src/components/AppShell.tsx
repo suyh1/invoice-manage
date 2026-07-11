@@ -1,17 +1,31 @@
-import type { PropsWithChildren } from "react";
+import { useCallback, useEffect, useState, type PropsWithChildren } from "react";
 import { Bell, Search, Upload } from "lucide-react";
 
 import { appRoutes, type AppRoute } from "../app/router";
 import { useAuth } from "../auth/AuthContext";
 import { visibleNavigationIds } from "../lib/permissions";
 import { OcrQuotaStatus } from "./OcrQuotaStatus";
+import { GlobalSearchDialog } from "./GlobalSearchDialog";
 import { UserMenu } from "./UserMenu";
 
 export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRoute: AppRoute }>) {
   const auth = useAuth();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
   const visibleRoutes = appRoutes.filter((route) =>
     auth.user ? visibleNavigationIds(auth.user.role).includes(route.id) : false,
   );
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   return (
     <main className="app-shell">
@@ -44,7 +58,7 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
             <i aria-hidden="true">/</i>
             <strong>{activeRoute.label}</strong>
           </div>
-          <button className="shell-command-search" type="button">
+          <button aria-label="搜索发票、项目或供应商" className="shell-command-search" onClick={() => setSearchOpen(true)} type="button">
             <Search aria-hidden="true" size={14} />
             <span>搜索发票、项目或供应商</span>
             <kbd>⌘ K</kbd>
@@ -60,6 +74,7 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
         </header>
         {children}
       </section>
+      <GlobalSearchDialog onClose={closeSearch} open={searchOpen} />
     </main>
   );
 }
