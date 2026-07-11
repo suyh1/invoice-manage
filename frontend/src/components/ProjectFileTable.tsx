@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Eye, Trash2 } from "lucide-react";
+
+import { ProjectFilePreviewDialog } from "./ProjectFilePreviewDialog";
 
 export type ProjectFileSummary = {
   content_type: string;
@@ -28,6 +30,7 @@ export function ProjectFileTable({
   onDelete: (id: string) => void;
 }) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<ProjectFileSummary | null>(null);
 
   if (!files.length) {
     return (
@@ -70,6 +73,28 @@ export function ProjectFileTable({
                 <td>{formatDateTime(file.created_at)}</td>
                 <td>
                   <div className="project-file-actions">
+                    {isInlinePreview(file.file_ext) ? (
+                      <button
+                        aria-label={`预览 ${file.original_filename}`}
+                        className="icon-button"
+                        onClick={() => setPreviewFile(file)}
+                        title="预览"
+                        type="button"
+                      >
+                        <Eye aria-hidden="true" size={16} />
+                      </button>
+                    ) : (
+                      <a
+                        aria-label={`预览 ${file.original_filename}`}
+                        className="icon-button"
+                        href={`/api/v1/documents/${file.id}/preview`}
+                        rel="noreferrer"
+                        target="_blank"
+                        title="在新窗口预览"
+                      >
+                        <Eye aria-hidden="true" size={16} />
+                      </a>
+                    )}
                     <a
                       aria-label={`下载 ${file.original_filename}`}
                       className="icon-button"
@@ -101,8 +126,13 @@ export function ProjectFileTable({
           })}
         </tbody>
       </table>
+      {previewFile ? <ProjectFilePreviewDialog file={previewFile} onClose={() => setPreviewFile(null)} /> : null}
     </div>
   );
+}
+
+function isInlinePreview(fileExt: string) {
+  return ["jpeg", "jpg", "pdf", "png"].includes(fileExt.toLowerCase());
 }
 
 function formatBytes(size: number) {

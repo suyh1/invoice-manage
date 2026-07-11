@@ -4675,13 +4675,42 @@ body,
 .invoice-archive .project-file-table th:nth-child(3) { width: 11%; }
 .invoice-archive .project-file-table th:nth-child(4) { width: 16%; }
 .invoice-archive .project-file-table th:nth-child(5) { width: 20%; }
-.invoice-archive .project-file-table th:last-child { width: 104px; }
+.invoice-archive .project-file-table th:last-child { width: 138px; }
 .invoice-archive .project-file-name strong,
 .invoice-archive .project-file-name small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .invoice-archive .project-file-name small { margin-top: 5px; color: var(--desk-muted); }
 .invoice-archive .project-file-actions { display: flex; gap: 7px; justify-content: flex-end; }
 .invoice-archive .project-file-actions .icon-button { width: 34px; height: 34px; border-radius: 0; }
 .invoice-archive .project-file-actions .confirm-delete { border-color: var(--critical); background: var(--critical); color: #fff; }
+.project-file-preview-dialog {
+  width: min(1040px, calc(100vw - 48px));
+  max-height: min(860px, calc(100dvh - 48px));
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--desk-ink);
+  border-radius: 0;
+  background: #fff;
+  padding: 0;
+  box-shadow: 12px 16px 0 rgb(0 0 0 / 0.14);
+}
+.project-file-preview-dialog::backdrop { background: rgb(0 0 0 / 0.48); }
+.project-file-preview-heading { display: flex; min-height: 68px; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 16px; border-bottom: 1px solid var(--desk-ink); }
+.project-file-preview-heading > div:first-child { min-width: 0; }
+.project-file-preview-heading h2 { max-width: 58ch; margin-top: 5px; overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+.project-file-preview-actions { display: flex; flex: 0 0 auto; gap: 7px; }
+.project-file-preview-actions .icon-button { width: 36px; height: 36px; border-radius: 0; }
+.project-file-preview-canvas { display: grid; height: min(720px, calc(100dvh - 118px)); min-height: 360px; place-items: center; overflow: auto; background: var(--desk-wash); }
+.project-file-preview-canvas img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; }
+.project-file-preview-canvas iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+
+@media (max-width: 680px) {
+  .project-file-preview-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); }
+  .project-file-preview-heading { align-items: flex-start; padding: 11px 12px; }
+  .project-file-preview-heading h2 { max-width: 42vw; font-size: 15px; }
+  .project-file-preview-actions { gap: 4px; }
+  .project-file-preview-actions .icon-button { width: 34px; height: 34px; }
+  .project-file-preview-canvas { height: calc(100dvh - 92px); min-height: 280px; }
+}
 .invoice-ledger-table { min-width: 100%; }
 .invoice-ledger-table th { font-size: 10px; }
 .invoice-ledger-table td { font-size: 12px; }

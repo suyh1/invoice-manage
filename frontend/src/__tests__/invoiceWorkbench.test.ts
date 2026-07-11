@@ -54,4 +54,11 @@ describe("invoice workbench", () => {
     expect(invoicePage).toContain("document_kind=project_file");
     expect(invoicePage).toContain("apiDelete");
   });
+
+  it("constrains project file previews to the viewport", () => {
+    expect(styles).toMatch(
+      /\.project-file-preview-dialog\s*\{[^}]*width:\s*min\([^;]+;[^}]*max-height:\s*min\([^;]+;/,
+    );
+    expect(styles).toContain(".project-file-preview-canvas");
+  });
 });
