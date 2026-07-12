@@ -11,6 +11,6 @@ describe("brand metadata", () => {
     expect(indexHtml).toContain('rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"');
     expect(indexHtml).toContain('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"');
     expect(indexHtml).toContain('rel="manifest" href="/site.webmanifest"');
-    expect(indexHtml).toContain('name="theme-color" content="#177c78"');
+    expect(indexHtml).toContain('name="theme-color" content="#0a0a0a"');
   });
 });
