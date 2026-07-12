@@ -63,5 +63,7 @@ describe("authenticated editorial visual system", () => {
     expect(styles).toContain(".quota-progress-value");
     expect(styles).toContain(".quota-status.warning .quota-progress-fill");
     expect(styles).toContain(".quota-status.critical .quota-progress-fill");
+    expect(styles).toContain("--quota-alert: oklch(0.52 0.15 28);");
+    expect(styles).toContain("background: var(--quota-alert);");
   });
 });

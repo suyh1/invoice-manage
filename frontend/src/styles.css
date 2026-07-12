@@ -17,6 +17,7 @@
   --warning-soft: oklch(0.94 0.055 76);
   --critical: oklch(0.52 0.15 28);
   --critical-soft: oklch(0.94 0.045 28);
+  --quota-alert: oklch(0.52 0.15 28);
   --auth-bg: #f4f7f7;
   --auth-ink: #11181a;
   --auth-accent: #177c78;
@@ -1270,7 +1271,7 @@ p {
 
 .quota-status.warning .quota-progress-fill,
 .quota-status.critical .quota-progress-fill {
-  background: var(--critical);
+  background: var(--quota-alert);
 }
 
 .quota-status.compact {
@@ -4190,7 +4191,7 @@ label {
 .app-shell .quota-progress-fill { background: var(--desk-ink); }
 .app-shell .quota-progress-value { color: var(--desk-ink); font-size: 12px; }
 .app-shell .quota-status.warning .quota-progress-fill,
-.app-shell .quota-status.critical .quota-progress-fill { background: var(--critical); }
+.app-shell .quota-status.critical .quota-progress-fill { background: var(--quota-alert); }
 
 .app-shell .workspace {
   display: grid;
