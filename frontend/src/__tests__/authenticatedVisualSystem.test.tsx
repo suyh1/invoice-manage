@@ -55,4 +55,13 @@ describe("authenticated editorial visual system", () => {
     expect(usersPage).toContain("user-ledger");
     expect(invoiceTable).toContain("empty-actions");
   });
+
+  it("renders OCR quota as a hollow monochrome progress track with red threshold states", () => {
+    expect(styles).toContain(".quota-progress-row");
+    expect(styles).toContain(".quota-progress-track");
+    expect(styles).toContain(".quota-progress-fill");
+    expect(styles).toContain(".quota-progress-value");
+    expect(styles).toContain(".quota-status.warning .quota-progress-fill");
+    expect(styles).toContain(".quota-status.critical .quota-progress-fill");
+  });
 });

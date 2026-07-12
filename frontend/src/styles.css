@@ -1228,74 +1228,55 @@ p {
 .quota-status {
   display: grid;
   align-content: start;
-  gap: 8px;
-  min-height: 154px;
+  gap: 12px;
+  min-height: 78px;
   padding: 16px;
 }
 
-.quota-status strong {
-  color: var(--success);
-  font-size: 18px;
-  line-height: 1.2;
-}
-
-.quota-status p {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.quota-status dl {
+.quota-progress-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 4px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
 }
 
-.quota-status dl div {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-muted);
-  padding: 8px;
+.quota-progress-track {
+  position: relative;
+  height: 10px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: transparent;
 }
 
-.quota-status dt {
-  color: var(--ink-subtle);
-  font-size: 12px;
+.quota-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--ink);
 }
 
-.quota-status dd {
-  margin-top: 2px;
+.quota-progress-value {
+  min-width: 7ch;
   color: var(--ink);
-  font-size: 15px;
-  font-weight: 720;
+  font-family: ui-monospace, "SFMono-Regular", monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
 }
 
-.quota-status.warning {
-  border-color: oklch(0.75 0.08 76);
-  background: var(--warning-soft);
-}
-
-.quota-status.warning strong {
-  color: var(--warning);
-}
-
-.quota-status.critical {
-  border-color: oklch(0.72 0.08 28);
-  background: var(--critical-soft);
-}
-
-.quota-status.critical strong {
-  color: var(--critical);
+.quota-status.warning .quota-progress-fill,
+.quota-status.critical .quota-progress-fill {
+  background: var(--critical);
 }
 
 .quota-status.compact {
   min-height: auto;
   margin-top: auto;
   padding: 14px;
-}
-
-.quota-status.compact dl {
-  grid-template-columns: 1fr;
 }
 
 .settings-layout {
@@ -2877,14 +2858,13 @@ label {
     max-width: 100%;
   }
 
-  .quota-status.compact p,
-  .quota-status.compact dl {
-    display: none;
+  .quota-status.compact .quota-progress-row {
+    min-width: 0;
+    flex: 1;
   }
 
-  .quota-status.compact strong {
+  .quota-status.compact .quota-progress-value {
     margin-left: auto;
-    font-size: 15px;
   }
 
   .topbar,
@@ -4206,12 +4186,11 @@ label {
   background: transparent;
 }
 
-.app-shell .quota-status.compact > strong { color: var(--desk-ink); font-size: 11px; }
-.app-shell .quota-status.compact > p { font-size: 9px; line-height: 1.5; }
-.app-shell .quota-status.compact dl { gap: 0; }
-.app-shell .quota-status.compact dl div { padding: 7px 0; border: 0; border-top: 1px solid var(--desk-line); border-radius: 0; background: transparent; }
-.app-shell .quota-status.compact dt { font-size: 8px; }
-.app-shell .quota-status.compact dd { font-family: ui-monospace, monospace; font-size: 10px; }
+.app-shell .quota-progress-track { height: 9px; border-color: var(--desk-ink); }
+.app-shell .quota-progress-fill { background: var(--desk-ink); }
+.app-shell .quota-progress-value { color: var(--desk-ink); font-size: 12px; }
+.app-shell .quota-status.warning .quota-progress-fill,
+.app-shell .quota-status.critical .quota-progress-fill { background: var(--critical); }
 
 .app-shell .workspace {
   display: grid;
