@@ -12,6 +12,7 @@ from app.api.routes.exports import router as exports_router
 from app.api.routes.health import router as health_router
 from app.api.routes.invoices import duplicate_router, router as invoices_router
 from app.api.routes.ocr_jobs import router as ocr_jobs_router
+from app.api.routes.ocr_quota import router as ocr_quota_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes.review import router as review_router
 from app.api.routes.search import router as search_router
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     application.include_router(documents_router)
     application.include_router(dashboard_router)
     application.include_router(ocr_jobs_router)
+    application.include_router(ocr_quota_router)
     application.include_router(projects_router)
     application.include_router(review_router)
     application.include_router(search_router)
