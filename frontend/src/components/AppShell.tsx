@@ -4,6 +4,7 @@ import { Bell, Search, Upload } from "lucide-react";
 import { appRoutes, type AppRoute } from "../app/router";
 import { useAuth } from "../auth/AuthContext";
 import { visibleNavigationIds } from "../lib/permissions";
+import { BrandMark } from "./BrandMark";
 import { OcrQuotaStatus } from "./OcrQuotaStatus";
 import { GlobalSearchDialog } from "./GlobalSearchDialog";
 import { UserMenu } from "./UserMenu";
@@ -31,6 +32,7 @@ export function AppShell({ activeRoute, children }: PropsWithChildren<{ activeRo
     <main className="app-shell">
       <aside className="sidebar" aria-label="主导航">
         <a className="brand" href="#/" aria-label="Invoice OCR 总览">
+          <BrandMark className="app-brand-mark" />
           <span>
             <strong>Invoice OCR</strong>
             <small>发票识别与归档</small>

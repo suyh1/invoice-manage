@@ -79,6 +79,11 @@ a {
   text-decoration: none;
 }
 
+.brand-symbol {
+  display: block;
+  flex: 0 0 auto;
+}
+
 button {
   border: 0;
 }
@@ -3033,11 +3038,23 @@ label {
 
 .motion-auth-brand {
   display: inline-grid;
-  gap: 1px;
+  grid-template-columns: 38px auto;
+  align-items: center;
+  gap: 11px;
   color: var(--auth-text);
 }
 
-.motion-auth-brand span {
+.motion-auth-brand-mark {
+  width: 38px;
+  height: 38px;
+}
+
+.motion-auth-brand-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.motion-auth-brand strong {
   font-family: "Source Serif 4", Georgia, serif;
   font-size: 28px;
   font-style: italic;
@@ -3677,7 +3694,7 @@ label {
     min-height: 56px;
   }
 
-  .motion-auth-page:not(.is-bootstrap) .motion-auth-brand span {
+  .motion-auth-page:not(.is-bootstrap) .motion-auth-brand strong {
     font-size: 24px;
   }
 
@@ -3878,7 +3895,7 @@ label {
     min-height: 68px;
   }
 
-  .motion-auth-brand span {
+  .motion-auth-brand strong {
     font-size: 24px;
   }
 
@@ -4104,12 +4121,20 @@ label {
 
 .app-shell .brand {
   display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
   min-height: 94px;
+  align-items: center;
   align-content: center;
+  gap: 12px;
   padding: 0 22px;
   border-bottom: 1px solid var(--desk-line);
   border-radius: 0;
   background: rgb(255 255 255 / 0.84);
+}
+
+.app-shell .app-brand-mark {
+  width: 36px;
+  height: 36px;
 }
 
 .app-shell .brand strong {
@@ -4764,10 +4789,9 @@ body,
 
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 70px minmax(0, 1fr); }
-  .app-shell .brand { min-height: 70px; padding: 0; place-items: center; }
-  .app-shell .brand strong { font-size: 0; }
-  .app-shell .brand strong::after { content: "IO"; font-size: 20px; }
-  .app-shell .brand small, .nav-list-caption, .app-shell .nav-list a > span, .app-shell .nav-list em, .app-shell .sidebar > .quota-status.compact { display: none; }
+  .app-shell .brand { grid-template-columns: 38px; min-height: 70px; padding: 0; place-items: center; }
+  .app-shell .brand > span, .nav-list-caption, .app-shell .nav-list a > span, .app-shell .nav-list em, .app-shell .sidebar > .quota-status.compact { display: none; }
+  .app-shell .app-brand-mark { width: 38px; height: 38px; }
   .app-shell .nav-list { padding: 18px 10px; }
   .app-shell .nav-list a { grid-template-columns: 1fr; place-items: center; padding: 0; }
   .shell-nav-index { font-size: 9px; }

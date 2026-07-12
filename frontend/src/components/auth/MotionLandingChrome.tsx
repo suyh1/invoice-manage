@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode } from "react";
 import { CircleCheckBig, FileOutput, FolderTree, ScanLine, Upload } from "lucide-react";
 
 import { heroCapabilities, workflowCapabilities, workflowSteps } from "../../lib/authLanding";
+import { BrandMark } from "../BrandMark";
 
 type MotionLandingChromeProps = {
   bootstrap?: boolean;
@@ -46,8 +47,11 @@ function MotionNavbar() {
   return (
     <header className="motion-auth-navbar">
       <a className="motion-auth-brand" href="#top" aria-label="Invoice OCR 发票识别与归档">
-        <span>Invoice OCR</span>
-        <small>发票识别与归档</small>
+        <BrandMark className="motion-auth-brand-mark" />
+        <span className="motion-auth-brand-copy">
+          <strong>Invoice OCR</strong>
+          <small>发票识别与归档</small>
+        </span>
       </a>
     </header>
   );
