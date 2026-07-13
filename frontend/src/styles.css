@@ -4489,6 +4489,7 @@ label {
 .editorial-page-heading h2 em { font-family: "Source Serif 4", Georgia, serif; font-style: italic; font-weight: 600; }
 .editorial-page-heading p { max-width: 70ch; font-size: 9px; }
 .editorial-page-heading .quota-status.compact { width: min(330px, 38%); padding: 14px; border: 1px solid var(--desk-line-dark); background: var(--desk-wash); }
+.upload-editorial .editorial-page-heading .quota-status.compact { width: 100%; }
 
 .upload-editorial .upload-flow { gap: 0; }
 .upload-mode-switch { display: inline-flex; justify-self: start; margin-top: 22px; border: 1px solid var(--desk-line-dark); }
