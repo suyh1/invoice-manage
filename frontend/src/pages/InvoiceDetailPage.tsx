@@ -6,6 +6,7 @@ import { LineItemsEditor, type InvoiceLineItem } from "../components/LineItemsEd
 import { ProjectFilter } from "../components/ProjectFilter";
 import { ApiError, apiGet, apiPatch, apiPost, apiPut } from "../lib/api";
 import { EXPENSE_SCENE_OPTIONS } from "../lib/expenseScenes";
+import { watchOcrJobQuota } from "../lib/ocrJobQuotaWatcher";
 import type { ProjectSummary } from "../lib/projects";
 
 type InvoiceDetail = {
@@ -238,6 +239,7 @@ export function InvoiceDetailPage({ invoiceId }: { invoiceId: string }) {
     setStatus("saving");
     try {
       await apiPost(`/api/v1/ocr-jobs/${detail.ocr.id}/retry`);
+      void watchOcrJobQuota(detail.ocr.id);
       setMessage("已提交重新识别。");
       setStatus("ready");
     } catch (error) {

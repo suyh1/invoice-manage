@@ -3,6 +3,7 @@ import { CheckCheck, ExternalLink, RotateCcw } from "lucide-react";
 
 import { ApiError, apiGet, apiPost } from "../lib/api";
 import { canBulkConfirm, invoiceStatusLabel, type ReviewTab } from "../lib/invoiceStatus";
+import { watchOcrJobQuota } from "../lib/ocrJobQuotaWatcher";
 
 type ReviewSummary = Record<ReviewTab, number>;
 
@@ -126,6 +127,7 @@ export function ReviewQueuePage() {
     setMessage(null);
     try {
       await apiPost(`/api/v1/ocr-jobs/${item.ocr.id}/retry`);
+      void watchOcrJobQuota(item.ocr.id);
       setMessage("已提交重新识别。");
       await loadQueue();
     } catch (error) {

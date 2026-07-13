@@ -7,6 +7,7 @@ import { UploadQueue, type UploadQueueItem } from "../components/UploadQueue";
 import { ApiError, apiGet, apiPost, apiPostForm } from "../lib/api";
 import { EXPENSE_SCENE_OPTIONS } from "../lib/expenseScenes";
 import { validateProjectFileCandidate, validateUploadCandidate } from "../lib/fileValidation";
+import { refreshQuotaForOcrJob } from "../lib/ocrJobQuotaWatcher";
 import type { ProjectSummary } from "../lib/projects";
 
 type DocumentUploadResponse = {
@@ -17,6 +18,7 @@ type DocumentUploadResponse = {
 };
 
 type OcrJobResponse = {
+  attempt_count: number;
   id: string;
   status: string;
   provider_error_code?: string | null;
@@ -161,10 +163,12 @@ export function UploadPage() {
 
   async function pollOcrJob(itemId: string, jobId: string) {
     updateItem(itemId, { status: "recognizing" });
+    let lastQuotaRefreshAttempt = 0;
     for (let attempt = 0; attempt < 24; attempt += 1) {
       await delay(attempt === 0 ? 1000 : 2500);
       try {
         const job = await apiGet<OcrJobResponse>(`/api/v1/ocr-jobs/${jobId}`);
+        lastQuotaRefreshAttempt = refreshQuotaForOcrJob(job, lastQuotaRefreshAttempt);
         const nextStatus = mapOcrJobStatus(job.status);
         updateItem(itemId, {
           error: job.provider_error_code ? `OCR 运营商错误：${job.provider_error_code}` : undefined,

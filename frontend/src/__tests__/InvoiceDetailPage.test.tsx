@@ -4,12 +4,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InvoiceDetailPage } from "../pages/InvoiceDetailPage";
-import { apiGet, apiPatch } from "../lib/api";
+import { apiGet, apiPatch, apiPost } from "../lib/api";
+import { watchOcrJobQuota } from "../lib/ocrJobQuotaWatcher";
 
 vi.mock("../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/api")>();
   return { ...actual, apiGet: vi.fn(), apiPatch: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn() };
 });
+
+vi.mock("../lib/ocrJobQuotaWatcher", () => ({ watchOcrJobQuota: vi.fn() }));
 
 const project = { id: "project-1", name: "jet", visibility: "private", status: "active" };
 const baseDetail = {
@@ -49,6 +52,8 @@ describe("InvoiceDetailPage", () => {
   beforeEach(() => {
     vi.mocked(apiGet).mockImplementation((path) => Promise.resolve(path === "/api/v1/projects" ? [project] : baseDetail));
     vi.mocked(apiPatch).mockReset();
+    vi.mocked(apiPost).mockReset();
+    vi.mocked(watchOcrJobQuota).mockReset();
   });
 
   afterEach(cleanup);
@@ -78,5 +83,27 @@ describe("InvoiceDetailPage", () => {
     render(<InvoiceDetailPage invoiceId="invoice-2" />);
 
     expect((await screen.findByRole("textbox", { name: /发票代码/ }) as HTMLInputElement).value).toBe("144032216011");
+  });
+
+  it("starts watching quota after an OCR retry is accepted", async () => {
+    const detailWithOcr = {
+      ...baseDetail,
+      ocr: {
+        error_code: "OCR_PROVIDER_TIMEOUT",
+        id: "ocr-job-1",
+        provider: "tencent",
+        provider_error_code: null,
+        request_id: null,
+        status: "failed_final",
+      },
+    };
+    vi.mocked(apiGet).mockImplementation((path) => Promise.resolve(path === "/api/v1/projects" ? [project] : detailWithOcr));
+    vi.mocked(apiPost).mockResolvedValue({});
+    render(<InvoiceDetailPage invoiceId="invoice-1" />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "重新识别" }));
+
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/v1/ocr-jobs/ocr-job-1/retry"));
+    expect(watchOcrJobQuota).toHaveBeenCalledWith("ocr-job-1");
   });
 });
