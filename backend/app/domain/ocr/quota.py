@@ -77,11 +77,11 @@ def record_provider_call(
 
     if success:
         usage.successful_calls += 1
-        usage.estimated_billable_calls += 1
-        if provider_config.free_quota_used is not None:
-            provider_config.free_quota_used += 1
     else:
         usage.failed_calls += 1
+    usage.estimated_billable_calls += 1
+    if provider_config.free_quota_used is not None:
+        provider_config.free_quota_used += 1
     db.flush()
     return usage
 

@@ -54,6 +54,20 @@ def test_record_provider_call_updates_daily_usage_and_generates_warning() -> Non
         assert alerts[0].status == QuotaAlertStatus.active
 
 
+def test_failed_provider_call_still_consumes_billable_quota() -> None:
+    with make_session() as session:
+        provider = make_provider()
+        session.add(provider)
+        session.commit()
+
+        usage = record_provider_call(session, provider, success=False, usage_date=date(2026, 7, 9))
+
+        assert usage.successful_calls == 0
+        assert usage.failed_calls == 1
+        assert usage.estimated_billable_calls == 1
+        assert provider.free_quota_used == 80
+
+
 def test_acknowledge_alert_marks_status() -> None:
     with make_session() as session:
         actor = create_user(
