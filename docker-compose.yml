@@ -1,6 +1,6 @@
 name: invoice-ocr
 
-x-app-image: &app-image ${APP_IMAGE:-docker.io/nathan974/invoice-ocr-app:0.2.7}
+x-app-image: &app-image ${APP_IMAGE:-docker.io/nathan974/invoice-ocr-app:0.2.8}
 
 x-postgres-credentials: &postgres-credentials
   POSTGRES_DB: invoice_app
