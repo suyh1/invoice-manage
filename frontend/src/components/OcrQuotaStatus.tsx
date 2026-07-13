@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { apiGet } from "../lib/api";
+import { OCR_QUOTA_REFRESH_EVENT } from "../lib/ocrQuotaRefresh";
 
 type QuotaStatus = {
   level: "none" | "warning" | "critical";
@@ -14,19 +15,43 @@ export function OcrQuotaStatus({ compact = false }: { compact?: boolean }) {
 
   useEffect(() => {
     let cancelled = false;
-    apiGet<QuotaStatus>("/api/v1/ocr-quota/status")
-      .then((data) => {
-        if (!cancelled) {
-          setQuota(data);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setQuota(null);
-        }
-      });
+    let requestVersion = 0;
+
+    function loadQuota() {
+      const currentVersion = ++requestVersion;
+      return apiGet<QuotaStatus>("/api/v1/ocr-quota/status")
+        .then((data) => {
+          if (!cancelled && currentVersion === requestVersion) {
+            setQuota(data);
+          }
+        })
+        .catch(() => {
+          if (!cancelled && currentVersion === requestVersion) {
+            setQuota(null);
+          }
+        });
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void loadQuota();
+      }
+    }
+
+    function handleRefresh() {
+      void loadQuota();
+    }
+
+    void loadQuota();
+    window.addEventListener(OCR_QUOTA_REFRESH_EVENT, handleRefresh);
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       cancelled = true;
+      window.removeEventListener(OCR_QUOTA_REFRESH_EVENT, handleRefresh);
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

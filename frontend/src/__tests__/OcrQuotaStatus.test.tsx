@@ -43,6 +43,53 @@ describe("OcrQuotaStatus", () => {
     expect(screen.queryByRole("progressbar")).toBeNull();
     expect((container.querySelector(".quota-progress-fill") as HTMLElement).style.width).toBe("0%");
   });
+
+  it("refreshes every mounted indicator after an OCR quota event", async () => {
+    const fetchMock = mockQuotaSequence(
+      { level: "none", quota_total: 1000, quota_used: 250, used_percent: 25 },
+      { level: "none", quota_total: 1000, quota_used: 250, used_percent: 25 },
+      { level: "none", quota_total: 1000, quota_used: 251, used_percent: 25 },
+      { level: "none", quota_total: 1000, quota_used: 251, used_percent: 25 },
+    );
+
+    render(<><OcrQuotaStatus compact /><OcrQuotaStatus compact /></>);
+    await waitFor(() => expect(screen.getAllByText("250/1000")).toHaveLength(2));
+
+    window.dispatchEvent(new Event("invoice-ocr:quota-refresh"));
+
+    await waitFor(() => expect(screen.getAllByText("251/1000")).toHaveLength(2));
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("refreshes when the browser window regains focus", async () => {
+    const fetchMock = mockQuotaSequence(
+      { level: "none", quota_total: 1000, quota_used: 250, used_percent: 25 },
+      { level: "none", quota_total: 1000, quota_used: 251, used_percent: 25 },
+    );
+
+    render(<OcrQuotaStatus />);
+    await screen.findByText("250/1000");
+
+    window.dispatchEvent(new Event("focus"));
+
+    await screen.findByText("251/1000");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes when the document becomes visible", async () => {
+    const fetchMock = mockQuotaSequence(
+      { level: "none", quota_total: 1000, quota_used: 250, used_percent: 25 },
+      { level: "none", quota_total: 1000, quota_used: 251, used_percent: 25 },
+    );
+
+    render(<OcrQuotaStatus />);
+    await screen.findByText("250/1000");
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await screen.findByText("251/1000");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 function mockQuotaStatus(data: {
@@ -54,6 +101,20 @@ function mockQuotaStatus(data: {
   const fetchMock = vi.fn().mockResolvedValue(
     new Response(JSON.stringify({ data }), { status: 200 }),
   );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function mockQuotaSequence(...responses: Array<{
+  level: "none" | "warning" | "critical";
+  quota_total: number | null;
+  quota_used: number | null;
+  used_percent: number | null;
+}>) {
+  const fetchMock = vi.fn();
+  responses.forEach((data) => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ data }), { status: 200 }));
+  });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
